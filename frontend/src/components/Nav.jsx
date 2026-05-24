@@ -1,4 +1,7 @@
+import { useState } from 'react';
+
 export default function Nav({ user, view, setView, onLogout }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   if (!user) return null;
   const isStaff = ['teacher', 'hod'].includes(user.role);
   const isHod   = user.role === 'hod';
@@ -10,48 +13,44 @@ export default function Nav({ user, view, setView, onLogout }) {
     ...(isHod   ? [{ k: 'hod',     l: 'HOD Panel' }] : []),
   ];
 
-  return (
-    <nav style={{
-      position: 'sticky', top: 0, zIndex: 50,
-      background: 'rgba(6,10,20,0.92)',
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
-      backdropFilter: 'blur(20px)',
-      padding: '10px 20px',
-      display: 'flex', alignItems: 'center', gap: 16,
-    }}>
-      <span className="mono" style={{
-        fontSize: 10, letterSpacing: '0.2em',
-        color: 'rgba(99,140,255,0.7)', textTransform: 'uppercase', flexShrink: 0,
-      }}>
-        ETE · RUET
-      </span>
+  function handleNavClick(k) {
+    setView(k);
+    setMobileMenuOpen(false); // Close menu on click
+  }
 
-      <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+  return (
+    <nav className="nav-container">
+      {/* Logo Area */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <span className="mono" style={{ fontSize: 10, letterSpacing: '0.2em', color: 'rgba(99,140,255,0.7)', textTransform: 'uppercase' }}>
+          ETE · RUET
+        </span>
+        
+        {/* Mobile Toggle Button */}
+        <button className="mobile-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          {mobileMenuOpen ? '✕' : '☰'}
+        </button>
+      </div>
+
+      {/* Tabs - Conditionally shown based on mobileMenuOpen */}
+      <div className={`nav-links ${mobileMenuOpen ? 'open' : ''}`}>
         {tabs.map(t => (
           <button
             key={t.k}
-            onClick={() => setView(t.k)}
+            onClick={() => handleNavClick(t.k)}
             className={`nav-tab${view === t.k ? ' active' : ''}`}
           >
             {t.l}
           </button>
         ))}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 12, color: 'rgba(140,165,215,0.5)' }}>
-          {user.roll || user.initials || ''} ·{' '}
-          <span style={{ textTransform: 'capitalize' }}>{user.role}</span>
-        </span>
-        <button
-          onClick={onLogout}
-          style={{
-            padding: '5px 12px', borderRadius: 7,
-            border: '1px solid rgba(255,255,255,0.08)',
-            background: 'transparent', color: 'rgba(180,200,230,0.4)',
-            fontSize: 12,
-          }}
-        >Sign Out</button>
+        
+        {/* User Info & Logout (Moved inside nav-links for mobile) */}
+        <div className="mobile-user-info">
+          <span style={{ fontSize: 12, color: 'rgba(140,165,215,0.5)' }}>
+            {user.roll || user.initials || ''} · {user.role}
+          </span>
+          <button onClick={onLogout} className="sign-out-btn">Sign Out</button>
+        </div>
       </div>
     </nav>
   );
