@@ -6,6 +6,7 @@ import {
 } from '../services/api';
 import { toast } from '../components/Toast';
 import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../data/constants';
+import Swal from 'sweetalert2';
 
 function timeSince(iso) {
   const d = Date.now() - new Date(iso).getTime();
@@ -47,11 +48,31 @@ function SeriesManager({ configs, reload }) {
   }
 
   async function handleDelete(s) {
-    if (!window.confirm(`Graduate and remove Series ${s}?`)) return;
-    try {
-      const res = await deleteSeries(s);
-      if (res.success) { toast(`Series ${s} graduated`, '#f0c060', 'rgba(240,190,60,0.35)'); reload(); }
-    } catch (err) { toast('Failed', '#ff7a6a', 'rgba(255,90,69,0.35)'); }
+    // 2. Use SweetAlert2 instead of window.confirm
+    const result = await Swal.fire({
+      title: `Graduate Series ${s}?`,
+      text: "This will remove the series from active view. You can reactivate it later.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ff7a6a',
+      cancelButtonColor: '#aaa',
+      confirmButtonText: 'Yes, Graduate',
+      background: '#0a0d14', // Matches your modal style
+      color: '#e2eaff',
+      customClass: { popup: 'glass' } // Uses your global CSS glass style
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await deleteSeries(s);
+        if (res.success) {
+          toast(`Series ${s} graduated`, '#f0c060', 'rgba(240,190,60,0.35)');
+          reload();
+        }
+      } catch (err) {
+        toast(err?.response?.data?.message || 'Failed', '#ff7a6a', 'rgba(255,90,69,0.35)');
+      }
+    }
   }
 
   async function handleSemUpdate(s, sem) {
