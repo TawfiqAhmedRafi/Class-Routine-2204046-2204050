@@ -229,6 +229,27 @@ app.post("/api/series", requireDb, async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to add series." });
   }
 });
+/**
+ * PATCH /api/series/:series/edit
+ * HOD edits series metadata (like the label)
+ */
+app.patch("/api/series/:series/edit", requireDb, async (req, res) => {
+  const series = parseInt(req.params.series, 10);
+  const { label } = req.body;
+
+  try {
+    const result = await db.collection("series_config").updateOne(
+      { series, isActive: true }, 
+      { $set: { label, updatedAt: new Date().toISOString() } }
+    );
+
+    if (result.matchedCount === 0) return res.status(404).json({ success: false, message: "Series not found." });
+    return res.json({ success: true, message: `Series ${series} updated.` });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to update series." });
+  }
+});
+
 
 /**
  * PATCH /api/series/:series/semester
@@ -339,21 +360,22 @@ app.get("/api/routine/all/slots", requireDb, async (req, res) => {
  * GET /api/routine/:series
  * Fetch all slots for a given series.
  * Query params:
- *   ?batch=all|1st30|2nd30  (filters batchScope; defaults to 'all' = no filter)
- * Semester is derived server-side from series_config—client never passes it.
+ * ?batch=all|1st30|2nd30
+ * ?semester=odd|even (optional - overrides the active HOD config for viewing past/future)
  */
 app.get("/api/routine/:series", requireDb, async (req, res) => {
   const series = parseInt(req.params.series, 10);
-  const { batch } = req.query;
+  // 1. ADDED: Destructure 'semester' from the query parameters
+  const { batch, semester: requestedSemester } = req.query;
 
   try {
-    // Resolve the current semester from HOD config
     const config = await db.collection("series_config").findOne({ series, isActive: true });
     if (!config) {
       return res.status(404).json({ success: false, message: `Series ${series} not found or inactive.` });
     }
 
-    const semester = config.currentSemester;
+    // 2. CHANGED: Use the requested semester if the teacher toggled it, otherwise default to the active config
+    const semester = requestedSemester || config.currentSemester;
 
     // Build batch filter
     let query = { series, semester };

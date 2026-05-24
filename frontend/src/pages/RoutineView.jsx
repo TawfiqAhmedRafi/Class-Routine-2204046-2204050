@@ -15,7 +15,6 @@ function buildGrid(slots) {
   slots.forEach(slot => {
     const key = `${slot.day}-${slot.startPeriod}`;
     if (!consumed[key]) {
-      // Build periodSpan array from startPeriod + periodSpan count (backend stores count, not array)
       const span = slot.periodSpan;
       const spanArr = typeof span === 'number'
         ? Array.from({ length: span }, (_, i) => slot.startPeriod + i)
@@ -49,49 +48,63 @@ function Skeleton() {
 
 export default function RoutineView({ user }) {
   const [seriesConfigs, setSeriesConfigs] = useState([]);
-  const [slots,   setSlots]   = useState([]);
-  const [series,  setSeries]  = useState(user.series || 22);
-  const [sem,     setSem]     = useState('even');
-  const [batch,   setBatch]   = useState(user.batch || 'all');
-  const [modal,   setModal]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
+  const [slots, setSlots] = useState([]);
+  const [modal, setModal] = useState(null);
 
-  const isStaff  = ['teacher', 'hod'].includes(user.role);
+  // 1. THE ENGINE: This single object controls all API fetches
+  const [params, setParams] = useState({
+    series: user.series || 22,
+    batch: user.batch || 'all',
+    sem: '' // Blank means "Backend, automatically give me the active semester!"
+  });
 
-  // Load series configs on mount
+  // 2. THE PAINT: This only controls which button is highlighted (never triggers a fetch)
+  const [displaySem, setDisplaySem] = useState('');
+
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [error, setError] = useState(null);
+
+  const isStaff = ['teacher', 'hod'].includes(user.role);
+
+  // Fetch configs ONLY ONCE on mount
   useEffect(() => {
-    fetchSeries()
-      .then(res => {
-        if (res.success) {
-          setSeriesConfigs(res.data);
-          const cfg = res.data.find(c => c.series === series);
-          if (cfg) setSem(cfg.currentSemester);
-        }
-      })
-      .catch(() => {});
-  }, [series]);
+    fetchSeries().then(res => {
+      if (res.success) setSeriesConfigs(res.data);
+    }).catch(() => {});
+  }, []);
 
-  // Load slots whenever series or batch changes
+  // Fetch routine whenever params change (and ONLY when params change)
   useEffect(() => {
-    setLoading(true);
+    const loadingTimer = setTimeout(() => setIsFetching(true), 150);
     setError(null);
-    fetchRoutine(series, batch)
+
+    fetchRoutine(params.series, params.batch, params.sem)
       .then(res => {
         if (res.success) {
           setSlots(res.data);
-          setSem(res.semester);
+          setDisplaySem(res.semester); // Updates the UI buttons without causing a double-render!
         }
       })
       .catch(err => {
         setError(err?.response?.data?.message || 'Failed to load routine');
         toast('Failed to load routine', '#ff7a6a', 'rgba(255,90,69,0.35)');
       })
-      .finally(() => setLoading(false));
-  }, [series, batch]);
+      .finally(() => {
+        clearTimeout(loadingTimer);
+        setIsFetching(false);
+        setInitialLoad(false);
+      });
+
+    return () => clearTimeout(loadingTimer);
+  }, [params.series, params.batch, params.sem]);
+
+  // When switching series, we reset the semester to blank so the backend auto-detects the correct one
+  function handleSeriesChange(s) {
+    setParams(prev => ({ ...prev, series: s, sem: '' }));
+  }
 
   const grid = useMemo(() => buildGrid(slots), [slots]);
-
   const activeSeries = seriesConfigs.filter(c => c.isActive).map(c => c.series).sort((a,b)=>b-a);
 
   function renderRow(day) {
@@ -161,14 +174,14 @@ export default function RoutineView({ user }) {
     </th>
   ));
 
-  const batchActive = (k) => batch === k;
+  const batchActive = (k) => params.batch === k;
   function batchStyle(k) {
     return {
       padding: '5px 12px', borderRadius: 6, border: 'none',
       background: batchActive(k) ? 'rgba(240,190,60,0.2)' : 'transparent',
       color: batchActive(k) ? '#f0c060' : 'rgba(150,170,210,0.5)',
       fontSize: 12, fontWeight: batchActive(k) ? 700 : 400,
-      cursor: 'pointer',
+      cursor: 'pointer', transition: 'all 0.15s'
     };
   }
 
@@ -187,9 +200,15 @@ export default function RoutineView({ user }) {
         }}>
           ETE Department · Class Routine
         </h1>
-        <p style={{ color: 'rgba(140,165,215,0.5)', fontSize: 13, margin: '4px 0 0' }}>
-          Series {series} · {sem.charAt(0).toUpperCase() + sem.slice(1)} Semester
-          {loading && <span style={{ marginLeft: 12, color: 'rgba(99,140,255,0.5)', fontSize: 11 }}>⟳ Loading…</span>}
+        <p style={{ color: 'rgba(140,165,215,0.5)', fontSize: 13, margin: '4px 0 0', display: 'flex', alignItems: 'center' }}>
+          Series {params.series} · {displaySem ? displaySem.charAt(0).toUpperCase() + displaySem.slice(1) : ''} Semester
+          <span style={{ 
+            marginLeft: 12, color: 'rgba(99,140,255,0.8)', fontSize: 11,
+            opacity: isFetching ? 1 : 0, transition: 'opacity 0.2s',
+            display: 'inline-flex', alignItems: 'center', gap: 4
+          }}>
+             <span style={{ animation: 'shimmer 1s infinite' }}>⟳ Syncing...</span>
+          </span>
         </p>
       </div>
 
@@ -199,13 +218,14 @@ export default function RoutineView({ user }) {
           <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Series</span>
           <div style={{ display: 'flex', gap: 4 }}>
             {activeSeries.map(s => (
-              <button key={s} onClick={() => setSeries(s)} style={{
+              <button key={s} onClick={() => handleSeriesChange(s)} style={{
                 padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
-                border: series === s ? '1px solid rgba(99,140,255,0.6)' : '1px solid rgba(255,255,255,0.08)',
-                background: series === s ? 'rgba(60,100,220,0.2)' : 'rgba(255,255,255,0.03)',
-                color: series === s ? '#a8c2ff' : 'rgba(150,170,210,0.5)',
-                fontWeight: series === s ? 700 : 400,
+                border: params.series === s ? '1px solid rgba(99,140,255,0.6)' : '1px solid rgba(255,255,255,0.08)',
+                background: params.series === s ? 'rgba(60,100,220,0.2)' : 'rgba(255,255,255,0.03)',
+                color: params.series === s ? '#a8c2ff' : 'rgba(150,170,210,0.5)',
+                fontWeight: params.series === s ? 700 : 400,
                 fontFamily: 'JetBrains Mono, monospace',
+                transition: 'all 0.15s'
               }}>'{String(s).slice(-2)}</button>
             ))}
           </div>
@@ -216,11 +236,12 @@ export default function RoutineView({ user }) {
             <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sem</span>
             <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 2, gap: 2 }}>
               {['even','odd'].map(s => (
-                <button key={s} onClick={() => setSem(s)} style={{
+                <button key={s} onClick={() => setParams(prev => ({ ...prev, sem: s }))} style={{
                   padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                  background: sem === s ? 'rgba(60,100,220,0.3)' : 'transparent',
-                  color: sem === s ? '#a8c2ff' : 'rgba(150,170,210,0.5)',
-                  fontSize: 12, fontWeight: sem === s ? 700 : 400, textTransform: 'capitalize',
+                  background: displaySem === s ? 'rgba(60,100,220,0.3)' : 'transparent',
+                  color: displaySem === s ? '#a8c2ff' : 'rgba(150,170,210,0.5)',
+                  fontSize: 12, fontWeight: displaySem === s ? 700 : 400, textTransform: 'capitalize',
+                  transition: 'all 0.15s'
                 }}>{s}</button>
               ))}
             </div>
@@ -231,7 +252,7 @@ export default function RoutineView({ user }) {
           <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Batch</span>
           <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 2, gap: 2 }}>
             {[{k:'all',l:'All'},{k:'1st30',l:'1st 30'},{k:'2nd30',l:'2nd 30'}].map(b => (
-              <button key={b.k} onClick={() => setBatch(b.k)} style={batchStyle(b.k)}>{b.l}</button>
+              <button key={b.k} onClick={() => setParams(prev => ({ ...prev, batch: b.k }))} style={batchStyle(b.k)}>{b.l}</button>
             ))}
           </div>
         </div>
@@ -256,13 +277,17 @@ export default function RoutineView({ user }) {
         }}>⚠ {error}</div>
       )}
 
-      {/* Table */}
-      {loading ? <Skeleton /> : (
+      {/* Table Area */}
+      {initialLoad ? <Skeleton /> : (
         <div style={{
           overflowX: 'auto', borderRadius: 14,
           border: '1px solid rgba(255,255,255,0.06)',
           background: 'rgba(255,255,255,0.012)',
           backdropFilter: 'blur(20px)',
+          opacity: isFetching ? 0.7 : 1,
+          pointerEvents: isFetching ? 'none' : 'auto',
+          transition: 'opacity 0.25s ease',
+          minHeight: 400
         }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
             <thead>
