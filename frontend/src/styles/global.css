@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #060a14;
+  --glass:    rgba(255,255,255,0.025);
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.12);
+  --text:     #e2eaff;
+  --muted:    rgba(140,165,215,0.5);
+  --blue:     #a8c2ff;
+  --blue-bg:  rgba(60,100,220,0.22);
+  --blue-bdr: rgba(99,140,255,0.4);
+  --green:    #7fffd4;
+  --green-bg: rgba(20,180,120,0.13);
+  --green-bdr:rgba(40,210,140,0.38);
+  --red:      #ff7a6a;
+  --red-bg:   rgba(220,60,40,0.11);
+  --red-bdr:  rgba(255,90,69,0.35);
+  --gold:     #f0c060;
+  --gold-bg:  rgba(240,190,60,0.1);
+  --gold-bdr: rgba(240,190,60,0.3);
+}
+
+html, body, #root {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+::-webkit-scrollbar-thumb { background: rgba(99,140,255,0.3); border-radius: 3px; }
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease forwards; }
+
+@keyframes shimmer { 0%,100%{opacity:0.4} 50%{opacity:0.8} }
+
+/* ── Inputs / selects / textareas shared base ────────────────────────────── */
+input, select, textarea {
+  font-family: 'Space Grotesk', sans-serif;
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: #d0dcf0;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(99,140,255,0.4);
+}
+select { background: rgba(20,25,40,0.9); }
+textarea { resize: none; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+button { font-family: 'Space Grotesk', sans-serif; cursor: pointer; }
+
+/* ── Gradient text ───────────────────────────────────────────────────────── */
+.grad-text {
+  background: linear-gradient(120deg, #a8c2ff, #6080cc, #8090e0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Toggle button group shared ──────────────────────────────────────────── */
+.toggle-group {
+  display: flex;
+  gap: 2px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 3px;
+}
+.toggle-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 400;
+  transition: all 0.15s;
+  color: rgba(140,165,215,0.45);
+  background: transparent;
+}
+.toggle-btn.active {
+  background: rgba(60,100,220,0.22);
+  color: #a8c2ff;
+  font-weight: 700;
+}
+
+/* ── Nav tab ─────────────────────────────────────────────────────────────── */
+.nav-tab {
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: none;
+  font-size: 13px;
+  transition: all 0.15s;
+  color: rgba(140,165,215,0.45);
+  background: transparent;
+}
+.nav-tab.active {
+  background: rgba(60,100,220,0.2);
+  color: #a8c2ff;
+  font-weight: 700;
+}
+
+/* ── Field label ─────────────────────────────────────────────────────────── */
+.field-label {
+  display: block;
+  font-size: 10px;
+  color: rgba(140,165,215,0.5);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* ── Stat card ───────────────────────────────────────────────────────────── */
+.stat-card {
+  background: rgba(255,255,255,0.025);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+}
+
+/* ── Period button (request form) ────────────────────────────────────────── */
+.period-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: rgba(140,165,215,0.4);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.12s;
+}
+.period-btn.active {
+  background: rgba(60,100,220,0.2);
+  border-color: rgba(99,140,255,0.5);
+  color: #a8c2ff;
+}
+
+/* ── Ambient glow ────────────────────────────────────────────────────────── */
+.ambient-glow {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70vw;
+  height: 50vh;
+  background: radial-gradient(ellipse, rgba(30,60,180,0.09) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
