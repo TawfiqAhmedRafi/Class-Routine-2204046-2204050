@@ -67,7 +67,7 @@ export default function Login({ onLogin }) {
               Class Routine
             </h1>
             <p style={{ color: 'rgba(140,165,215,0.4)', fontSize: 12, margin: '6px 0 0' }}>
-              Dynamic Schedule System
+              Online Schedule System
             </p>
           </div>
 
@@ -85,10 +85,10 @@ export default function Login({ onLogin }) {
           {tab === 'student' ? (
             <>
               <label className="field-label">Roll Number</label>
-              <input style={monoInput} placeholder="e.g. 2204047" value={roll}
+              <input style={monoInput} placeholder="e.g. 22040XX" value={roll}
                 onChange={e => setRoll(e.target.value)} onKeyDown={handleKey} />
               <label className="field-label">Registration</label>
-              <input style={inputStyle} type="number" placeholder="e.g. 771" value={reg}
+              <input style={inputStyle} type="number" placeholder="e.g. 724+XX" value={reg}
                 onChange={e => setReg(e.target.value)} onKeyDown={handleKey} />
             </>
           ) : (
@@ -129,9 +129,10 @@ export default function Login({ onLogin }) {
             background: 'rgba(240,190,60,0.06)', border: '1px solid rgba(240,190,60,0.15)',
             borderRadius: 8, fontSize: 11, color: 'rgba(200,170,80,0.75)', lineHeight: 1.7,
           }}>
-            <strong style={{ color: 'rgba(240,200,100,0.9)' }}>Student auth is mathematical.</strong><br />
-            Roll <span className="mono">2204047</span> → Reg <span className="mono">771</span> (724 + 047)<br />
-            Staff credentials are set in the DB via <span className="mono">/api/seed/user</span>
+            
+            Roll <span className="mono">"2204001"</span> → Reg <span className="mono">"724"</span> <br />
+            Initials <span className="mono">"MFS"</span> → Pass <span className="mono">"1234"</span> <br />
+            
           </div>
         </div>
       </div>
