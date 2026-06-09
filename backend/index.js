@@ -6,7 +6,42 @@ const { ALL_SLOTS } = require("./seedData.js");
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+// ==========================================
+// CORS CONFIGURATION
+// ==========================================
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [];
+
+// Always allow localhost for development
+const devOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, Postman, same-origin)
+      if (!origin) return callback(null, true);
+
+      const allowed = [...devOrigins, ...allowedOrigins];
+
+      if (allowed.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      return callback(new Error(`CORS: Origin '${origin}' not allowed.`));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-cron-secret"],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 // ==========================================
@@ -54,14 +89,32 @@ function requireDb(req, res, next) {
   next();
 }
 
+// ==========================================
+// HEALTH CHECK
+// ==========================================
 
-
+/**
+ * GET /api/health
+ * Public health check for uptime monitors (UptimeRobot, cron-job.org, etc.)
+ * Keeps Render from spinning down — ping this every 14 minutes.
+ * The x-cron-secret header check is optional; omit it in your ping service
+ * by hitting /api/ping instead (see below).
+ */
 app.get("/api/health", (req, res) => {
   const token = req.headers["x-cron-secret"];
   if (token !== process.env.CRON_SECRET) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
   res.json({ success: true, status: "running", dbConnected: !!db, timestamp: new Date().toISOString() });
+});
+
+/**
+ * GET /api/ping
+ * No-auth health check for uptime monitors so Render stays awake.
+ * Point UptimeRobot / cron-job.org at this endpoint every 14 minutes.
+ */
+app.get("/api/ping", (req, res) => {
+  res.json({ success: true, status: "awake", dbConnected: !!db, timestamp: new Date().toISOString() });
 });
 
 // ==========================================
@@ -146,7 +199,6 @@ app.post("/api/auth/staff", requireDb, async (req, res) => {
       });
     }
 
-    // FIXED LINE 👇
     if (user.credentials.password !== password) {
       return res.status(401).json({
         success: false,
@@ -239,6 +291,7 @@ app.post("/api/series", requireDb, async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to add series." });
   }
 });
+
 /**
  * PATCH /api/series/:series/edit
  * HOD edits series metadata (like the label)
@@ -249,7 +302,7 @@ app.patch("/api/series/:series/edit", requireDb, async (req, res) => {
 
   try {
     const result = await db.collection("series_config").updateOne(
-      { series, isActive: true }, 
+      { series, isActive: true },
       { $set: { label, updatedAt: new Date().toISOString() } }
     );
 
@@ -375,7 +428,6 @@ app.get("/api/routine/all/slots", requireDb, async (req, res) => {
  */
 app.get("/api/routine/:series", requireDb, async (req, res) => {
   const series = parseInt(req.params.series, 10);
-  // 1. ADDED: Destructure 'semester' from the query parameters
   const { batch, semester: requestedSemester } = req.query;
 
   try {
@@ -384,7 +436,6 @@ app.get("/api/routine/:series", requireDb, async (req, res) => {
       return res.status(404).json({ success: false, message: `Series ${series} not found or inactive.` });
     }
 
-    // 2. CHANGED: Use the requested semester if the teacher toggled it, otherwise default to the active config
     const semester = requestedSemester || config.currentSemester;
 
     // Build batch filter
@@ -657,14 +708,6 @@ app.post("/api/requests/:id/reject", requireDb, async (req, res) => {
 // ==========================================
 
 /**
- * GET /api/health
- * Simple health check.
- */
-app.get("/api/health", (req, res) => {
-  res.json({ success: true, status: "running", dbConnected: !!db, timestamp: new Date().toISOString() });
-});
-
-/**
  * POST /api/seed/user
  * Development-only: seed a staff user.
  * Remove or protect this route in production.
@@ -722,6 +765,7 @@ app.post("/api/seed/series", requireDb, async (req, res) => {
     return res.status(500).json({ success: false, message: "Seed failed.", error: err.message });
   }
 });
+
 /**
  * POST /api/seed/slots
  * Development-only: bulk insert ALL_SLOTS into routine_slots collection.
@@ -751,9 +795,9 @@ app.post("/api/seed/slots", requireDb, async (req, res) => {
     // 3. Bulk insert
     const result = await db.collection("routine_slots").insertMany(cleanSlots);
 
-    return res.json({ 
-      success: true, 
-      message: `Successfully seeded ${result.insertedCount} slots into the database.` 
+    return res.json({
+      success: true,
+      message: `Successfully seeded ${result.insertedCount} slots into the database.`
     });
   } catch (err) {
     console.error("[Seed/Slots]", err);
