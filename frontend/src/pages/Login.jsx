@@ -28,7 +28,12 @@ export default function Login({ onLogin }) {
         setError(res.message || 'Login failed.');
       }
     } catch (err) {
-      setError(err?.response?.data?.message || 'Server error. Is the backend running?');
+     const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+  setError(
+    isTimeout
+      ? 'Server is waking up, please wait 30 seconds and try again.'
+      : err?.response?.data?.message || 'Server error. Is the backend running?'
+  );
     } finally {
       setLoading(false);
     }
