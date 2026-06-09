@@ -54,6 +54,16 @@ function requireDb(req, res, next) {
   next();
 }
 
+
+
+app.get("/api/health", (req, res) => {
+  const token = req.headers["x-cron-secret"];
+  if (token !== process.env.CRON_SECRET) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  res.json({ success: true, status: "running", dbConnected: !!db, timestamp: new Date().toISOString() });
+});
+
 // ==========================================
 // 1. AUTHENTICATION ROUTES
 // ==========================================
