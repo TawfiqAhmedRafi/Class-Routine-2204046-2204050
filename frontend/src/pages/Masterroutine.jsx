@@ -239,97 +239,196 @@ function SeriesGrid({ cfg, slots, seriesColor, setModal }) {
   );
 }
 
-// ── PDF Print View ──────────────────────────────────────────────────────────
-// Layout: 5 grids = 5 days, each grid = 9 cols (periods) × 5 rows (series 20-24)
-function generatePrintHtml(seriesConfigs, data) {
-  const sortedSeries = seriesConfigs
-    .filter(c => c.isActive)
-    .sort((a, b) => b.series - a.series); // 24 → 20 (top to bottom)
+// ── PDF Print View — faithful copy of the printed reference ───────────────
+// Strategy: instead of one giant merged table (which breaks with colspan slots),
+// use a CSS-grid/flex outer shell with SEPARATE tables per day that are forced
+// to identical widths. Each table is independent so colspan never bleeds across days.
+// The "gap" between days is just margin/padding on the wrapper — no blue <td> in headers.
+// Series labels are rendered as an absolutely-positioned left strip so all day tables
+// share the same row heights automatically via equal min-height on <tr>.
 
-  // Build a lookup: seriesNum -> grid[day][period]
+function generatePrintHtml(seriesConfigs, allData) {
+  const sortedSeries = [...seriesConfigs]
+    .filter(c => c.isActive)
+    .sort((a, b) => a.series - b.series);
+
   const grids = {};
   sortedSeries.forEach(cfg => {
-    const slots = data[cfg.series]?.slots || [];
-    grids[cfg.series] = buildGrid(slots);
+    grids[cfg.series] = buildGrid(allData[cfg.series]?.slots || []);
   });
 
-  const periods = NUM_PERIODS; // [1,2,3,4,5,6,7,8,9]
+  const periods = NUM_PERIODS; // [1..9]
   const timeMap = {};
   TIME_PERIODS.filter(t => !t.isBreak).forEach(t => { timeMap[t.period] = t; });
 
-  const typeShort = { theory: 'TH', lab: 'LAB', assessment: 'ASMT', seminar: 'SEM', project: 'PROJ' };
+  const TOP_DAYS    = ['Saturday', 'Sunday', 'Monday'];
+  const BOTTOM_DAYS = ['Tuesday', 'Wednesday'];
 
-  function cellHtml(slot, colSpan = 1) {
-    if (!slot) return `<td colspan="${colSpan}" class="empty-cell"></td>`;
-    const pc = PRINT_COLORS[slot.type] || PRINT_COLORS.theory;
-    const room = formatRoom(slot.room?.roomLabel || slot.room || '');
-    const teachers = (slot.teachers || slot.teacherInitials || []).join(', ');
-    return `
-      <td colspan="${colSpan}" class="slot-cell" style="background:${pc.bg};border-color:${pc.border}">
-        <div class="slot-type" style="color:${pc.border}">${typeShort[slot.type] || slot.type}</div>
-        <div class="slot-course">${slot.courseCode}</div>
-        ${slot.courseTitle && slot.courseTitle !== slot.courseCode
-          ? `<div class="slot-title">${slot.courseTitle}</div>`
-          : ''}
-        <div class="slot-meta">${teachers}${room ? ` · ${room}` : ''}</div>
-      </td>`;
+  const TEACHERS = [
+    { init: 'MKH', name: 'Dr. Md. Kamal Hosain' },
+    { init: 'MFS', name: 'Dr. Mst. Fateha Samad' },
+    { init: 'AM',  name: 'Md. Aslam Mollah' },
+    { init: 'RKH', name: 'Md. Rakib Hossain' },
+    { init: 'FZA', name: 'Farzana Akter' },
+    { init: 'HS',  name: 'Hasan Sarker' },
+    { init: 'AIS', name: 'Abu Ismail Siddique' },
+    { init: 'ST',  name: 'Sharaf Tasnim' },
+    { init: 'NIN', name: 'Nazmul Islam Nahin' },
+    { init: 'RA',  name: 'Rubaeat Ahammed' },
+    { init: 'RTM', name: 'Rifa Tabassum Mim' },
+  ];
+
+  const TIME_SCHED = [
+    { period: '1st',   time: '8:00–8:50' },
+    { period: '2nd',   time: '8:50–9:40' },
+    { period: '3rd',   time: '9:40–10:30' },
+    { period: 'Break', time: '10:30–10:50', isBreak: true },
+    { period: '4th',   time: '10:50–11:40' },
+    { period: '5th',   time: '11:40–12:30' },
+    { period: '6th',   time: '12:30–1:20' },
+    { period: 'P&LB',  time: '1:20–2:30',  isBreak: true },
+    { period: '7th',   time: '2:30–3:20' },
+    { period: '8th',   time: '3:20–4:10' },
+    { period: '9th',   time: '4:10–5:00' },
+  ];
+
+  const ROW_STYLES = [
+    { labelBg: '#d6e4ff', labelColor: '#1a3a8c', rowBg: '#f5f8ff' },
+    { labelBg: '#d4f4e8', labelColor: '#0a5e3a', rowBg: '#f0fbf5' },
+    { labelBg: '#fde8d0', labelColor: '#7c3a00', rowBg: '#fffaf5' },
+    { labelBg: '#e8d8ff', labelColor: '#5a1a8c', rowBg: '#faf5ff' },
+    { labelBg: '#ffd6d0', labelColor: '#8c1a0a', rowBg: '#fff5f4' },
+  ];
+
+  const PC = {
+    theory:     { bg: '#dce8ff', border: '#5a8aff' },
+    lab:        { bg: '#d4f7ea', border: '#18c980' },
+    assessment: { bg: '#ffe0dc', border: '#ff5a45' },
+    seminar:    { bg: '#eedcff', border: '#b060f0' },
+    project:    { bg: '#fff0cc', border: '#f0a020' },
+  };
+
+  const ROW_H = 38; // px — fixed row height so all day tables align
+
+  // ── Slot cell ─────────────────────────────────────────────────────────────
+  function slotTd(slot, colspan, rowBg) {
+    if (!slot) return `<td colspan="${colspan}" style="border:0.5px solid #ccc;background:${rowBg};padding:1px;height:${ROW_H}px;"></td>`;
+    const pc        = PC[slot.type] || PC.theory;
+    const room      = formatRoom(slot.room?.roomLabel || slot.room || '');
+    const teacher   = (slot.teachers || slot.teacherInitials || []).join('/');
+    const code      = slot.courseCode || '';
+    const isSpecial = slot.type === 'lab' || slot.type === 'project';
+    const title     = isSpecial ? (slot.courseTitle || code) : code;
+    return `<td colspan="${colspan}" style="border:0.5px solid #ccc;border-left:2.5px solid ${pc.border};background:${pc.bg};padding:2px 3px;vertical-align:top;overflow:hidden;height:${ROW_H}px;">
+      <div style="font-size:6.5px;font-weight:700;color:#111;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
+      ${isSpecial ? `<div style="font-size:5.5px;color:#444;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${code}</div>` : ''}
+      <div style="font-size:5.5px;color:#555;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${teacher}${room ? ' · ' + room : ''}</div>
+    </td>`;
   }
 
-  const dayTables = DAYS.map(day => {
-    // Header row: period numbers + time
-    const headerCells = periods.map(p => {
+  // ── Build ONE day table (no label column — labels are in a separate left strip) ──
+  function buildOneDayTable(day) {
+    // Period header row
+    const periodHdr = periods.map(p => {
       const t = timeMap[p];
-      return `<th class="period-header"><div class="p-num">P${p}</div><div class="p-time">${t.start}–${t.end}</div></th>`;
+      return `<th style="background:#e2e9f8;text-align:center;border:0.5px solid #bbb;padding:1px 0;white-space:nowrap;">
+        <span style="display:block;font-size:6.5px;font-weight:700;color:#1a2a6c;">P${p}</span>
+        <span style="display:block;font-size:5px;color:#555;">${t.start}</span>
+      </th>`;
     }).join('');
 
-    // One row per series
-    const seriesRows = sortedSeries.map((cfg, idx) => {
-      const grid = grids[cfg.series];
-      const dayGrid = grid[day] || {};
+    // Data rows
+    const bodyRows = sortedSeries.map((cfg, idx) => {
+      const rs       = ROW_STYLES[idx % ROW_STYLES.length];
+      const dayGrid  = grids[cfg.series][day] || {};
       const consumed = {};
       const cells = periods.map(p => {
-        if (consumed[p]) return null; // will be skipped
-        const slotVal = dayGrid[p];
-        if (slotVal === 'CONSUMED') return null;
-        const slot = slotVal || null;
+        if (consumed[p]) return null;
+        const val  = dayGrid[p];
+        if (val === 'CONSUMED') return null;
+        const slot = val || null;
         const span = slot ? (slot.periodSpan?.length || 1) : 1;
-        if (slot) {
-          (slot.periodSpan || []).slice(1).forEach(pp => { consumed[pp] = true; });
-        }
-        return cellHtml(slot, span);
-      }).filter(c => c !== null).join('');
-
-      const rowColors = [
-        { bg: '#eef3ff', label: '#3f6dff' },
-        { bg: '#edfaf4', label: '#0a8c5a' },
-        { bg: '#fdf7e8', label: '#b87000' },
-        { bg: '#f4eeff', label: '#8a30d0' },
-        { bg: '#fff0ee', label: '#c0392b' },
-      ];
-      const rc = rowColors[idx % rowColors.length];
-      return `
-        <tr>
-          <td class="series-label" style="background:${rc.bg};color:${rc.label}">${cfg.series}<br><span class="series-sem">${cfg.currentSemester}</span></td>
-          ${cells}
-        </tr>`;
+        if (slot) (slot.periodSpan || []).slice(1).forEach(pp => { consumed[pp] = true; });
+        return slotTd(slot, span, rs.rowBg);
+      }).filter(Boolean).join('');
+      return `<tr style="height:${ROW_H}px;">${cells}</tr>`;
     }).join('');
 
-    return `
-      <div class="day-block">
-        <div class="day-title">${day.toUpperCase()}</div>
-        <table class="routine-table">
-          <thead>
-            <tr>
-              <th class="series-col-header">Series</th>
-              ${headerCells}
-            </tr>
-          </thead>
-          <tbody>
-            ${seriesRows}
-          </tbody>
-        </table>
+    // colgroup: 9 equal columns, table-layout:fixed
+    const colgroup = `<colgroup>${periods.map(() => `<col/>`).join('')}</colgroup>`;
+
+    return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+      <!-- Day name banner -->
+      <div style="background:#1a2a6c;color:#fff;text-align:center;font-size:8px;font-weight:800;letter-spacing:.08em;padding:3px 0;border:0.5px solid #0d1a52;">${day.toUpperCase()}</div>
+      <!-- Period/data table -->
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;flex:1;">
+        ${colgroup}
+        <thead>
+          <tr>${periodHdr}</tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  // ── Series label strip (left column, same height as day tables) ───────────
+  // We render a tiny table with the same row heights so it lines up.
+  function buildLabelStrip() {
+    // Header area: day banner height (≈18px) + period header height (≈18px) = 36px
+    const headerPlaceholder = `<div style="height:36px;background:#1a2a6c;border:0.5px solid #0d1a52;display:flex;align-items:center;justify-content:center;">
+      <span style="font-size:6px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:.08em;">Series</span>
+    </div>`;
+    const rows = sortedSeries.map((cfg, idx) => {
+      const rs       = ROW_STYLES[idx % ROW_STYLES.length];
+      const semLabel = cfg.currentSemester === 'odd' ? 'ODD SEM' : 'EVEN SEM';
+      return `<div style="height:${ROW_H}px;display:flex;align-items:center;justify-content:center;background:${rs.labelBg};border:0.5px solid #bbb;border-right:2.5px solid ${rs.labelColor};padding:2px;">
+        <div style="text-align:center;color:${rs.labelColor};font-size:6px;font-weight:800;line-height:1.4;">
+          ${semLabel}<br/><span style="font-size:7.5px;">${cfg.series} Series</span>
+        </div>
       </div>`;
+    }).join('');
+    return `<div style="width:50px;flex-shrink:0;display:flex;flex-direction:column;">
+      ${headerPlaceholder}
+      ${rows}
+    </div>`;
+  }
+
+  // ── Half-page block (label strip + day tables side by side) ───────────────
+  function buildHalf(days) {
+    const dayTables = days.map(d => buildOneDayTable(d)).join('');
+    return `<div style="display:flex;gap:5px;align-items:stretch;">
+      ${buildLabelStrip()}
+      ${dayTables}
+    </div>`;
+  }
+
+  // ── Teachers + Time panel ─────────────────────────────────────────────────
+  const teacherRows = TEACHERS.map(t =>
+    `<tr>
+      <td style="font-size:6px;font-weight:700;color:#1a2a6c;padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;">${t.init}</td>
+      <td style="font-size:6px;padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;color:#18191f;">${t.name}</td>
+    </tr>`
+  ).join('');
+
+  const timeRows = TIME_SCHED.map(r => {
+    const isBreak = r.isBreak;
+    return `<tr style="${isBreak ? 'background:#fffbe6;' : ''}">
+      <td style="font-size:6px;font-weight:${isBreak ? '700' : '600'};padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;color:${isBreak ? '#b87000' : '#111'};">${r.period}</td>
+      <td style="font-size:6px;padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;color:${isBreak ? '#b87000' : '#333'};">${r.time}</td>
+    </tr>`;
   }).join('');
+
+  const rightPanel = `
+    <div style="width:150px;flex-shrink:0;display:flex;flex-direction:column;gap:3px;margin-left:4px;">
+      <div>
+        <div style="background:#1a2a6c;color:#fff;font-size:7px;font-weight:700;padding:2px 4px;letter-spacing:.06em;">Teachers of ETE</div>
+        <table style="border-collapse:collapse;width:100%;">${teacherRows}</table>
+      </div>
+      <div>
+        <div style="background:#1a2a6c;color:#fff;font-size:7px;font-weight:700;padding:2px 4px;letter-spacing:.06em;">Period &amp; Time Schedule</div>
+        <table style="border-collapse:collapse;width:100%;">${timeRows}</table>
+      </div>
+    </div>`;
 
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -340,130 +439,41 @@ function generatePrintHtml(seriesConfigs, data) {
 <title>ETE Department — Master Class Routine</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  @page { size: A3 landscape; margin: 10mm 8mm; }
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 8px;
-    color: #111;
-    background: #fff;
-  }
-
-  /* ── Header ── */
-  .doc-header { text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #222; }
-  .doc-header .motto   { font-size: 8px; font-style: italic; color: #555; }
-  .doc-header .uni     { font-size: 9px; font-weight: bold; margin: 2px 0; }
-  .doc-header .dept    { font-size: 10px; font-weight: bold; }
-  .doc-header .routine-title { font-size: 12px; font-weight: bold; margin-top: 4px; }
-  .doc-header .subtitle { font-size: 8px; color: #555; margin-top: 2px; }
-
-  /* ── Day blocks ── */
-  .day-block { margin-bottom: 8px; }
-  .day-title {
-    font-size: 9px; font-weight: bold;
-    background: #1a2a6c; color: #fff;
-    padding: 3px 8px; border-radius: 3px 3px 0 0;
-    letter-spacing: 0.08em;
-  }
-
-  /* ── Tables ── */
-  .routine-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-  }
-  .routine-table th, .routine-table td {
-    border: 1px solid #bbb;
-    vertical-align: top;
-    padding: 2px 3px;
-    font-size: 7.5px;
-  }
-
-  /* Column widths */
-  .series-col-header, .series-label { width: 34px; text-align: center; }
-
-  .period-header {
-    background: #e8edf8;
-    text-align: center;
-    font-weight: bold;
-    padding: 3px 2px;
-  }
-  .p-num  { font-size: 8px; font-weight: bold; color: #1a2a6c; }
-  .p-time { font-size: 6px; color: #555; }
-
-  .series-label {
-    font-size: 9px; font-weight: bold;
-    text-align: center; vertical-align: middle;
-    line-height: 1.3;
-  }
-  .series-sem { font-size: 5.5px; font-weight: normal; text-transform: uppercase; letter-spacing: 0.04em; }
-
-  /* Slot cells */
-  .slot-cell {
-    vertical-align: top;
-    padding: 2px 3px;
-    border-left: 2px solid;
-  }
-  .slot-type  { font-size: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em; }
-  .slot-course { font-size: 8px; font-weight: bold; color: #111; line-height: 1.2; }
-  .slot-title { font-size: 6.5px; color: #333; line-height: 1.2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .slot-meta  { font-size: 6px; color: #555; margin-top: 1px; }
-
-  .empty-cell { background: #fafafa; }
-
-  /* ── Footer ── */
-  .doc-footer {
-    margin-top: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    border-top: 1px solid #ccc;
-    padding-top: 5px;
-    font-size: 7px;
-    color: #555;
-  }
-  .doc-footer .note { font-style: italic; }
-  .doc-footer .signature { text-align: right; }
-  .doc-footer .signature strong { font-size: 8px; display: block; margin-top: 18px; border-top: 1px solid #555; padding-top: 2px; }
-
-  /* ── Time legend ── */
-  .legend {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 6px;
-    flex-wrap: wrap;
-    font-size: 6.5px;
-  }
-  .legend-item { display: flex; align-items: center; gap: 3px; }
-  .legend-dot  { width: 8px; height: 8px; border-radius: 2px; }
+  @page { size: legal landscape; margin: 7mm 6mm; }
+  html, body { width: 100%; background: #fff; font-family: Arial, Helvetica, sans-serif; }
 </style>
 </head>
 <body>
 
-<div class="doc-header">
-  <div class="motto">Heaven's Light is Our Guide</div>
-  <div class="uni">Rajshahi University of Engineering &amp; Technology</div>
-  <div class="dept">Department of Electronics &amp; Telecommunication Engineering</div>
-  <div class="routine-title">Master Class Routine — All Series (20–24)</div>
-  <div class="subtitle">Printed on ${today} &nbsp;|&nbsp; Each grid = one day &nbsp;|&nbsp; Rows = Series &nbsp;|&nbsp; Columns = Time Periods</div>
+<!-- ── Page Header ── -->
+<div style="text-align:center;margin-bottom:5px;line-height:1.55;">
+  <div style="font-size:7px;font-style:italic;color:#555;">Heaven's Light is Our Guide</div>
+  <div style="font-size:8px;font-weight:700;color:#18191f;">Rajshahi University of Engineering &amp; Technology</div>
+  <div style="font-size:9px;font-weight:800;color:#18191f;">Department of Electronics &amp; Telecommunication Engineering</div>
+  <div style="font-size:9px;font-weight:700; color:#18191f;">Class Routine for all Series</div>
+  <div style="font-size:7px;color:#555;">Effective from \`${today}\` </div>
 </div>
 
-<div class="legend">
-  <strong style="font-size:7px">Type:</strong>
-  ${Object.entries(PRINT_COLORS).map(([type, pc]) =>
-    `<div class="legend-item"><div class="legend-dot" style="background:${pc.bg};border:1px solid ${pc.border}"></div>${type.toUpperCase()}</div>`
-  ).join('')}
+<!-- ── TOP: Saturday | Sunday | Monday ── -->
+<div style="margin-bottom:6px;">
+  ${buildHalf(TOP_DAYS)}
 </div>
 
-${dayTables}
+<!-- ── BOTTOM: Tuesday | Wednesday  +  right panel ── -->
+<div style="display:flex;align-items:flex-start;gap:0;">
+  <div style="flex:1;min-width:0;">${buildHalf(BOTTOM_DAYS)}</div>
+  ${rightPanel}
+</div>
 
-<div class="doc-footer">
-  <div class="note">
-    Note: Please follow this routine strictly.<br/>
-    &quot;There will be no further change.&quot;<br/>
-    P&amp;LB = Prayer &amp; Lunch Break &nbsp;|&nbsp; Break = 10:30–10:50
+<!-- ── Footer ── -->
+<div style="margin-top:6px;display:flex;justify-content:space-between;align-items:flex-end;">
+  <div style="font-size:6.5px;color:#333;line-height:1.7;">
+    <strong>Note: Please follow this routine strictly</strong><br/>
+    &quot; There will be no further change &quot;<br/>
+    <span style="color:#888;">P&amp;LB = Prayer &amp; Lunch Break &nbsp;|&nbsp; Printed: ${today}</span>
   </div>
-  <div class="signature">
-    Head of the Department<br/>
+  <div style="text-align:right;font-size:6.5px;color:#333;line-height:1.7;">
+    Head of the Dept: _______________<br/>
     <strong>Prof. Dr. Md. Kamal Hosain</strong>
   </div>
 </div>
@@ -531,12 +541,13 @@ export default function MasterRoutine({ user }) {
       // ── 2. Build the routine HTML and inject it into a hidden off-screen div ──
       const html = generatePrintHtml(activeConfigs, data);
       const container = document.createElement('div');
+      // Legal landscape: 355.6mm × 215.9mm → at 96dpi: 1344 × 816 px
       container.style.cssText = [
         'position:fixed', 'left:-9999px', 'top:0',
-        'width:1587px',   // A3 landscape at 96dpi ≈ 420mm
+        'width:1344px',
         'background:#fff',
         'font-family:Arial,Helvetica,sans-serif',
-        'padding:20px',
+        'padding:26px 23px',   // ~7mm margins at 96dpi
         'z-index:-1',
       ].join(';');
 
@@ -556,55 +567,35 @@ export default function MasterRoutine({ user }) {
 
       document.body.appendChild(container);
 
-      // Small delay so browser can render/layout
-      await new Promise(r => setTimeout(r, 300));
+      // Wait for layout to settle
+      await new Promise(r => setTimeout(r, 400));
 
-      // ── 3. Capture with html2canvas ──
+      // ── 3. Capture with html2canvas at fixed legal-page height ──
+      // Legal landscape px at 96dpi: 1344 wide × 816 tall
+      const LEGAL_PX_W = 1344;
+      const LEGAL_PX_H = 816;
+
       const canvas = await window.html2canvas(container, {
-        scale: 2,           // 2× for crisp text
+        scale: 3,           // 3× for crisp small text
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        width: container.scrollWidth,
-        height: container.scrollHeight,
-        windowWidth: container.scrollWidth,
+        width:  LEGAL_PX_W,
+        height: LEGAL_PX_H,
+        windowWidth: LEGAL_PX_W,
+        windowHeight: LEGAL_PX_H,
       });
 
       document.body.removeChild(container);
 
-      // ── 4. Split canvas into A3-landscape pages and build PDF ──
+      // ── 4. Place on one legal landscape page ──
       const { jsPDF } = window.jspdf;
-      // A3 landscape in mm: 420 × 297
-      const PAGE_W = 420, PAGE_H = 297;
-      const pdf    = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
+      // Legal: 355.6 × 215.9 mm
+      const PAGE_W = 355.6, PAGE_H = 215.9;
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'legal' });
 
-      const imgW   = canvas.width;
-      const imgH   = canvas.height;
-
-      // How many mm does 1 canvas-pixel represent in the PDF?
-      const mmPerPx   = PAGE_W / imgW;
-      const pageHpx   = PAGE_H / mmPerPx;      // canvas pixels that fit in one page height
-      let   yOffset   = 0;
-      let   firstPage = true;
-
-      while (yOffset < imgH) {
-        if (!firstPage) pdf.addPage();
-        firstPage = false;
-
-        // Crop a horizontal strip from the canvas
-        const sliceH  = Math.min(pageHpx, imgH - yOffset);
-        const tmpCanvas = document.createElement('canvas');
-        tmpCanvas.width  = imgW;
-        tmpCanvas.height = sliceH;
-        const ctx = tmpCanvas.getContext('2d');
-        ctx.drawImage(canvas, 0, yOffset, imgW, sliceH, 0, 0, imgW, sliceH);
-
-        const imgData = tmpCanvas.toDataURL('image/jpeg', 0.92);
-        const drawH   = sliceH * mmPerPx;
-        pdf.addImage(imgData, 'JPEG', 0, 0, PAGE_W, drawH, '', 'FAST');
-
-        yOffset += pageHpx;
-      }
+      const imgData = canvas.toDataURL('image/jpeg', 0.97);
+      pdf.addImage(imgData, 'JPEG', 0, 0, PAGE_W, PAGE_H, '', 'FAST');
 
       // ── 5. Save ──
       const fname = `ETE_Master_Routine_${new Date().toISOString().slice(0, 10)}.pdf`;
