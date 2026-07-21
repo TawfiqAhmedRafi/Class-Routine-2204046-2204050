@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Swal from 'sweetalert2';
 import { addSeries, updateSeriesSemester, deleteSeries, editSeriesLabel } from '../../services/api';
 import { toast } from '../Toast';
+import GlassSelect from '../GlassSelect';
 
 const inputSt = {
   padding: '9px 12px', background: 'rgba(255,255,255,0.04)',
@@ -174,7 +175,7 @@ export default function SeriesManager({ configs, reload }) {
         }
         .add-form .f-year { width: 100px; }
         .add-form .f-label { flex: 1 1 200px; min-width: 0; }
-        .add-form .f-sem { width: 110px; background: rgba(20,25,40,0.9); }
+        .add-form .f-sem { width: 110px; flex-shrink: 0; }
         .add-form .f-btn {
           padding: 9px 18px;
           border-radius: 8px;
@@ -298,15 +299,16 @@ export default function SeriesManager({ configs, reload }) {
             onChange={e => setNewLabel(e.target.value)}
             style={inputSt}
           />
-          <select
-            className="f-sem"
-            value={newSem}
-            onChange={e => setNewSem(e.target.value)}
-            style={inputSt}
-          >
-            <option value="odd">Odd Sem</option>
-            <option value="even">Even Sem</option>
-          </select>
+          <div className="f-sem">
+            <GlassSelect
+              value={newSem}
+              onChange={val => setNewSem(val)}
+              options={[
+                { value: 'odd', label: 'Odd Sem' },
+                { value: 'even', label: 'Even Sem' }
+              ]}
+            />
+          </div>
           <button className="f-btn" onClick={handleAdd} disabled={busy}>+ Add</button>
         </div>
       </div>
