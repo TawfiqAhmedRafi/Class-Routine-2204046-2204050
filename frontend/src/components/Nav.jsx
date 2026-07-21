@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { NavLink } from "react-router-dom";
 
-export default function Nav({ user, view, setView, onLogout }) {
+export default function Nav({ user, onLogout }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!user) return null;
@@ -8,23 +9,18 @@ export default function Nav({ user, view, setView, onLogout }) {
   const isHod = user.role === "hod";
 
   const tabs = [
-    { k: "routine", l: "My Routine" },
-    { k: "master", l: "Master Routine" },
-    ...(isStaff ? [{ k: "request", l: "Request" }] : []),
-    ...(isHod ? [{ k: "hod", l: "HOD Panel" }] : []),
+    { to: "/routine", l: "My Routine" },
+    { to: "/master", l: "Master Routine" },
+    { to: "/teacher-routine", l: "Teacher Routine" },
+    ...(isStaff ? [{ to: "/request", l: "Request" }] : []),
+    ...(isHod ? [{ to: "/hod", l: "HOD Panel" }] : []),
   ];
-
-  function handleNavClick(k) {
-    setView(k);
-    setMobileMenuOpen(false);
-  }
 
   return (
     <nav className="nav-container">
       <div className="nav-wrapper">
         <span className="mono nav-logo">ETE · RUET</span>
 
-        {/* Only visible on mobile */}
         <button
           className="mobile-toggle"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -32,27 +28,23 @@ export default function Nav({ user, view, setView, onLogout }) {
           {mobileMenuOpen ? "✕" : "☰"}
         </button>
 
-        {/* Desktop tabs + Mobile Menu list */}
         <div className={`nav-links ${mobileMenuOpen ? "open" : ""}`}>
           {tabs.map((t) => (
-            <button
-              key={t.k}
-              onClick={() => handleNavClick(t.k)}
-              className={`nav-tab ${view === t.k ? "active" : ""}`}
+            <NavLink
+              key={t.to}
+              to={t.to}
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) => `nav-tab ${isActive ? "active" : ""}`}
             >
               {t.l}
-            </button>
+            </NavLink>
           ))}
 
-          {/* User info moved into the same flow for better mobile organization */}
           <div className="nav-user-area">
-            <span className="user-badge">
-              {user.roll || user.initials} · {user.role}
+            <span className="user-badge" style={{ fontSize: '12px', color: 'rgba(160,185,230,0.8)' }}>
+              {user.roll || user.initials} · <span style={{ textTransform: 'capitalize' }}>{user.role}</span>
             </span>
-            <button
-              onClick={onLogout}
-              className="sign-out-btn" // Changed to a class for better styling control
-            >
+            <button onClick={onLogout} className="sign-out-btn">
               Sign Out
             </button>
           </div>

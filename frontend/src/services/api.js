@@ -78,6 +78,15 @@ export const approveRequest = (id) =>
 export const rejectRequest = (id, reason = "") =>
   api.post(`/api/requests/${id}/reject`, { reason }).then((r) => r.data);
 
+// ── Users / Teachers ──────────────────────────────────────────────────────────
+export const fetchTeachers = () => api.get("/api/users/teachers").then((r) => r.data);
+
+export const addTeacher = (teacherData) =>
+  api.post("/api/users/teachers", teacherData).then((r) => r.data);
+
+export const deleteTeacher = (id) =>
+  api.delete(`/api/users/teachers/${id}`).then((r) => r.data);
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const healthCheck = () => api.get("/api/health").then((r) => r.data);
