@@ -6,7 +6,8 @@ import { toast } from '../Toast';
 const inputSt = {
   padding: '9px 12px', background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
-  color: '#d0dcf0', fontSize: 12, outline: 'none', width: '100%'
+  color: '#d0dcf0', fontSize: 12, outline: 'none', width: '100%',
+  boxSizing: 'border-box'
 };
 
 export default function TeacherManager() {
@@ -18,7 +19,7 @@ export default function TeacherManager() {
     try {
       const res = await fetchTeachers();
       if (res.success) setTeachers(res.data);
-    } catch (err) { toast('Failed to load teachers', '#ff7a6a'); } 
+    } catch (err) { toast('Failed to load teachers', '#ff7a6a'); }
     finally { setLoading(false); }
   }
 
@@ -55,39 +56,194 @@ export default function TeacherManager() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24 }}>
-      <div className="glass" style={{ padding: 20, borderRadius: 14, height: 'fit-content' }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 14, color: '#a8c2ff' }}>Add New Teacher</h3>
-        <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input required placeholder="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={inputSt}/>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <input required placeholder="Initials (e.g. MKH)" value={form.initials} onChange={e => setForm({...form, initials: e.target.value.toUpperCase()})} style={{...inputSt, textTransform: 'uppercase'}}/>
-            <input required type="password" placeholder="Password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} style={inputSt}/>
-          </div>
-          <input required placeholder="Designation (e.g. Assistant Professor)" value={form.designation} onChange={e => setForm({...form, designation: e.target.value})} style={inputSt}/>
-          <button type="submit" style={{ padding: 10, borderRadius: 8, background: 'rgba(60,100,220,0.2)', border: '1px solid rgba(99,140,255,0.4)', color: '#a8c2ff', fontWeight: 700, cursor: 'pointer' }}>
-            + Add Teacher
-          </button>
-        </form>
-      </div>
+    <div className="teacher-manager">
+      <style>{`
+        .teacher-manager * { box-sizing: border-box; }
 
-      <div className="glass" style={{ padding: 20, borderRadius: 14 }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 14, color: '#a8c2ff' }}>Active Staff</h3>
-        {loading ? <div style={{ color: '#555' }}>Loading...</div> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {teachers.map(t => (
-              <div key={t._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#d0dcf0' }}>{t.name} <span className="mono" style={{ color: '#a8c2ff', fontSize: 11 }}>({t.credentials?.initials})</span></div>
-                  <div style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)' }}>{t.designation}</div>
+        .tm-grid {
+          display: grid;
+          grid-template-columns: 1fr 2fr;
+          gap: 24px;
+        }
+
+        .tm-panel {
+          padding: 20px;
+          border-radius: 14px;
+        }
+        .tm-panel-add {
+          height: fit-content;
+        }
+        .tm-title {
+          margin: 0 0 16px;
+          font-size: 14px;
+          color: #a8c2ff;
+        }
+
+        .tm-form {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .tm-form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        .tm-submit {
+          padding: 10px;
+          border-radius: 8px;
+          background: rgba(60,100,220,0.2);
+          border: 1px solid rgba(99,140,255,0.4);
+          color: #a8c2ff;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .tm-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .tm-loading {
+          color: #555;
+        }
+
+        .tm-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 14px;
+          background: rgba(255,255,255,0.02);
+          border: 1px solid rgba(255,255,255,0.05);
+          border-radius: 8px;
+          flex-wrap: wrap;
+        }
+        .tm-row-info {
+          min-width: 0;
+        }
+        .tm-row-name {
+          font-size: 13px;
+          font-weight: 700;
+          color: #d0dcf0;
+          word-break: break-word;
+        }
+        .tm-row-initials {
+          color: #a8c2ff;
+          font-size: 11px;
+        }
+        .tm-row-desig {
+          font-size: 11px;
+          color: rgba(140,165,215,0.5);
+          word-break: break-word;
+        }
+        .tm-remove-btn {
+          padding: 6px 10px;
+          border-radius: 6px;
+          background: rgba(255,90,69,0.1);
+          border: 1px solid rgba(255,90,69,0.3);
+          color: #ff7a6a;
+          cursor: pointer;
+          font-size: 11px;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        /* Tablet: stack the two main panels into a single column */
+        @media (max-width: 900px) {
+          .tm-grid {
+            grid-template-columns: 1fr;
+          }
+          .tm-panel-add {
+            height: auto;
+          }
+        }
+
+        /* Small phones: initials/password fields stack too, and each
+           staff row goes full-column so the remove button sits below
+           the info instead of squeezing it */
+        @media (max-width: 480px) {
+          .tm-form-row {
+            grid-template-columns: 1fr;
+          }
+          .tm-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .tm-remove-btn {
+            width: 100%;
+            text-align: center;
+          }
+          .tm-panel {
+            padding: 16px;
+          }
+        }
+      `}</style>
+
+      <div className="tm-grid">
+        <div className="glass tm-panel tm-panel-add">
+          <h3 className="tm-title">Add New Teacher</h3>
+          <form onSubmit={handleAdd} className="tm-form">
+            <input
+              required
+              placeholder="Full Name"
+              value={form.name}
+              onChange={e => setForm({...form, name: e.target.value})}
+              style={inputSt}
+            />
+            <div className="tm-form-row">
+              <input
+                required
+                placeholder="Initials (e.g. MKH)"
+                value={form.initials}
+                onChange={e => setForm({...form, initials: e.target.value.toUpperCase()})}
+                style={{...inputSt, textTransform: 'uppercase'}}
+              />
+              <input
+                required
+                type="password"
+                placeholder="Password"
+                value={form.password}
+                onChange={e => setForm({...form, password: e.target.value})}
+                style={inputSt}
+              />
+            </div>
+            <input
+              required
+              placeholder="Designation (e.g. Assistant Professor)"
+              value={form.designation}
+              onChange={e => setForm({...form, designation: e.target.value})}
+              style={inputSt}
+            />
+            <button type="submit" className="tm-submit">
+              + Add Teacher
+            </button>
+          </form>
+        </div>
+
+        <div className="glass tm-panel">
+          <h3 className="tm-title">Active Staff</h3>
+          {loading ? <div className="tm-loading">Loading...</div> : (
+            <div className="tm-list">
+              {teachers.map(t => (
+                <div key={t._id} className="tm-row">
+                  <div className="tm-row-info">
+                    <div className="tm-row-name">
+                      {t.name} <span className="mono tm-row-initials">({t.credentials?.initials})</span>
+                    </div>
+                    <div className="tm-row-desig">{t.designation}</div>
+                  </div>
+                  <button
+                    className="tm-remove-btn"
+                    onClick={() => handleDelete(t._id, t.credentials?.initials)}
+                  >
+                    Remove
+                  </button>
                 </div>
-                <button onClick={() => handleDelete(t._id, t.credentials?.initials)} style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(255,90,69,0.1)', border: '1px solid rgba(255,90,69,0.3)', color: '#ff7a6a', cursor: 'pointer', fontSize: 11 }}>
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
