@@ -246,6 +246,85 @@ app.get("/api/series", requireDb, async (req, res) => {
   }
 });
 
+
+
+// ==========================================
+// 4.5 TEACHER / USER MANAGEMENT ROUTES
+// ==========================================
+
+/**
+ * GET /api/users/teachers
+ * Fetch all teachers and HODs for the management dashboard.
+ */
+app.get("/api/users/teachers", requireDb, async (req, res) => {
+  try {
+    const teachers = await db
+      .collection("users")
+      .find({ role: { $in: ["teacher", "hod"] } })
+      .toArray();
+
+    return res.json({ success: true, data: teachers });
+  } catch (error) {
+    console.error("[Users/GET Teachers]", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch teachers." });
+  }
+});
+
+/**
+ * POST /api/users/teachers
+ * Add a new teacher to the system.
+ */
+app.post("/api/users/teachers", requireDb, async (req, res) => {
+  const { name, initials, designation, password } = req.body;
+
+  if (!name || !initials || !password) {
+    return res.status(400).json({ success: false, message: "Name, initials, and password are required." });
+  }
+
+  try {
+    // Prevent duplicate initials
+    const existing = await db.collection("users").findOne({ "credentials.initials": initials.toUpperCase() });
+    if (existing) {
+      return res.status(409).json({ success: false, message: `Initials '${initials}' are already in use.` });
+    }
+
+    const newTeacher = {
+      name,
+      designation: designation || "Teacher",
+      role: "teacher", // Defaulting to teacher
+      credentials: {
+        initials: initials.toUpperCase(),
+        password: password 
+      }
+    };
+
+    const result = await db.collection("users").insertOne(newTeacher);
+    return res.json({ success: true, message: "Teacher added successfully.", teacherId: result.insertedId });
+  } catch (error) {
+    console.error("[Users/POST Teacher]", error);
+    return res.status(500).json({ success: false, message: "Failed to add teacher." });
+  }
+});
+
+/**
+ * DELETE /api/users/teachers/:id
+ * Remove a teacher from the system.
+ */
+app.delete("/api/users/teachers/:id", requireDb, async (req, res) => {
+  try {
+    const result = await db.collection("users").deleteOne({ _id: new ObjectId(req.params.id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: "Teacher not found." });
+    }
+
+    return res.json({ success: true, message: "Teacher deleted successfully." });
+  } catch (error) {
+    console.error("[Users/DELETE Teacher]", error);
+    return res.status(500).json({ success: false, message: "Failed to delete teacher." });
+  }
+});
+
 /**
  * POST /api/series
  * HOD adds a new series.
