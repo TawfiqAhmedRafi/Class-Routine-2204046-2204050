@@ -1,13 +1,41 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchRoutine, fetchMasterRoutine, createSlot, updateSlot, deleteSlot } from '../../services/api';
 import { toast } from '../Toast';
+import GlassSelect from '../GlassSelect';
 import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../../data/constants';
+import Swal from 'sweetalert2';
 
 const inputSt = {
   padding: '9px 12px', background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
-  color: '#d0dcf0', fontSize: 12, outline: 'none', width: '100%'
+  color: '#d0dcf0', fontSize: 13, outline: 'none', width: '100%',
+  fontFamily: 'Space Grotesk, sans-serif'
 };
+
+// ── Standardized Rooms ────────────────────────────────────────────────────────
+const ROOMS = [
+  "301", "302", "303", "304", 
+  "Seminar Room", "DSP Lab", "Electronics Lab", 
+  "Communication Lab", "Antenna Lab"
+];
+
+function normalizeRoom(r) {
+  if (!r) return "";
+  const str = typeof r === 'object' ? r.roomLabel : r;
+  const lower = str.toLowerCase();
+  
+  if (lower.includes("301")) return "301";
+  if (lower.includes("302")) return "302";
+  if (lower.includes("303")) return "303";
+  if (lower.includes("304")) return "304";
+  if (lower.includes("seminar")) return "Seminar Room";
+  if (lower.includes("dsp")) return "DSP Lab";
+  if (lower.includes("electronic")) return "Electronics Lab";
+  if (lower.includes("communication")) return "Communication Lab";
+  if (lower.includes("antenna")) return "Antenna Lab";
+  
+  return str;
+}
 
 function buildGrid(slots) {
   const grid = {};
@@ -46,9 +74,9 @@ export default function RoutineBuilder({ configs }) {
 
   const grid = useMemo(() => buildGrid(slots), [slots]);
 
-  function checkCollisions(formData) {
+  function checkTeacherCollisions(formData) {
     const requestedPeriods = Array.from({ length: Number(formData.periodSpan) }, (_, i) => Number(formData.startPeriod) + i);
-    const requestedTeachers = formData.teachers;
+    const requestedTeachers = formData.teachers.split(',').map(s=>s.trim()).filter(Boolean);
     const editId = editorModal?.data?._id;
 
     for (const slot of allMasterSlots) {
@@ -59,10 +87,6 @@ export default function RoutineBuilder({ configs }) {
       const existingPeriods = Array.from({ length: slotSpan }, (_, i) => slot.startPeriod + i);
       
       if (requestedPeriods.some(p => existingPeriods.includes(p))) {
-        const existingRoom = typeof slot.room === 'object' ? slot.room.roomLabel : slot.room;
-        if (formData.room && existingRoom && formData.room.toLowerCase() === existingRoom.toLowerCase()) {
-           return `Room Conflict: ${formData.room} is in use for ${slot.courseCode} (Series ${slot.series})`;
-        }
         const slotTeachers = slot.teachers || slot.teacherInitials || [];
         const teacherOverlap = requestedTeachers.find(t => slotTeachers.includes(t));
         if (teacherOverlap) {
@@ -74,7 +98,7 @@ export default function RoutineBuilder({ configs }) {
   }
 
   async function saveSlot(formData) {
-    const conflictError = checkCollisions(formData);
+    const conflictError = checkTeacherCollisions(formData);
     if (conflictError) { toast(conflictError, '#ff7a6a'); return; }
 
     try {
@@ -90,18 +114,63 @@ export default function RoutineBuilder({ configs }) {
   }
 
   async function trashSlot(id) {
-    if(!window.confirm('Delete this class?')) return;
-    try {
-      await deleteSlot(id); toast('Slot deleted', '#ff7a6a'); setEditorModal(null); load();
-    } catch(err) { toast('Delete failed', '#ff7a6a'); }
+  const result = await Swal.fire({
+    title: 'Delete this class?',
+    text: 'This action cannot be undone.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete it',
+    cancelButtonText: 'Cancel',
+    background: '#0a0d14',
+    color: '#d0dcf0',
+    confirmButtonColor: '#ff5a45',
+    cancelButtonColor: '#30384d',
+    customClass: {
+      popup: 'glass-swal'
+    }
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    await deleteSlot(id);
+
+    await Swal.fire({
+      title: 'Deleted!',
+      text: 'The class has been deleted.',
+      icon: 'success',
+      background: '#0a0d14',
+      color: '#d0dcf0',
+      confirmButtonColor: '#638cff'
+    });
+
+    setEditorModal(null);
+    load();
+
+  } catch (err) {
+    Swal.fire({
+      title: 'Delete failed',
+      text: 'Something went wrong while deleting the class.',
+      icon: 'error',
+      background: '#0a0d14',
+      color: '#d0dcf0',
+      confirmButtonColor: '#ff5a45'
+    });
   }
+}
 
   return (
     <div className="glass" style={{ borderRadius: 14, padding: 20 }}>
-      <select value={series} onChange={e=>setSeries(e.target.value)} style={{...inputSt, width: 200, marginBottom: 20}}>
-        <option value="">-- Select Series to Edit --</option>
-        {activeConfigs.map(c => <option key={c.series} value={c.series}>{c.label}</option>)}
-      </select>
+      
+      <div style={{ marginBottom: 20, width: 220 }}>
+        <GlassSelect 
+          placeholder="-- Select Series to Edit --"
+          value={series} 
+          onChange={val => setSeries(val)} 
+          options={activeConfigs.map(c => ({ value: c.series, label: c.label }))}
+        />
+      </div>
+      
       {series && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
@@ -147,80 +216,156 @@ export default function RoutineBuilder({ configs }) {
           </table>
         </div>
       )}
-      {editorModal && <SlotEditorModal modal={editorModal} onClose={()=>setEditorModal(null)} onSave={saveSlot} onDelete={trashSlot} />}
+      {editorModal && (
+        <SlotEditorModal 
+          modal={editorModal} 
+          allMasterSlots={allMasterSlots} 
+          onClose={()=>setEditorModal(null)} 
+          onSave={saveSlot} 
+          onDelete={trashSlot} 
+        />
+      )}
     </div>
   );
 }
 
-function SlotEditorModal({ modal, onClose, onSave, onDelete }) {
+function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
   const isNew = modal.isNew;
   const init = modal.data;
   
   const rawTeachers = Array.isArray(init.teachers) ? init.teachers.join(', ') : (init.teacherInitials?.join(', ') || '');
-  const rawRoom = typeof init.room === 'object' ? init.room.roomLabel : (init.room || '');
-  const rawSpan = Array.isArray(init.periodSpan) ? init.periodSpan.length : (init.periodSpan || 1);
+  const rawRoom = normalizeRoom(init.room);
+  
+  // Calculate initial span based on the type provided
+  const initType = init.type || 'theory';
+  const calculatedSpan = ['lab', 'project', 'seminar'].includes(initType) ? 3 : 1;
 
   const [form, setForm] = useState({
     courseCode: init.courseCode || '', courseName: init.courseName || init.courseTitle || '',
-    type: init.type || 'theory', day: init.day, startPeriod: init.startPeriod,
-    periodSpan: rawSpan, room: rawRoom, teachers: rawTeachers, batchScope: init.batchScope || 'all'
+    type: initType, day: init.day, startPeriod: init.startPeriod,
+    periodSpan: calculatedSpan, room: rawRoom, teachers: rawTeachers, batchScope: init.batchScope || 'all'
   });
 
+  // Automatically enforce the duration constraint when the type changes
   useEffect(() => {
     if (['lab', 'project', 'seminar'].includes(form.type)) {
       setForm(prev => ({ ...prev, periodSpan: 3 }));
+    } else {
+      setForm(prev => ({ ...prev, periodSpan: 1 }));
     }
   }, [form.type]);
 
+  const busyRooms = useMemo(() => {
+    const occupied = new Set();
+    const requestedPeriods = Array.from({ length: Number(form.periodSpan) }, (_, i) => Number(form.startPeriod) + i);
+
+    allMasterSlots.forEach(slot => {
+      if (!isNew && slot._id === init._id) return;
+      if (slot.day !== form.day) return;
+
+      const slotSpan = slot.periodSpan?.length || slot.periodSpan || 1;
+      const existingPeriods = Array.from({ length: slotSpan }, (_, i) => slot.startPeriod + i);
+      
+      const hasTimeOverlap = requestedPeriods.some(p => existingPeriods.includes(p));
+      if (hasTimeOverlap) {
+        const standardRoom = normalizeRoom(slot.room);
+        if (standardRoom) occupied.add(standardRoom);
+      }
+    });
+    return occupied;
+  }, [form.day, form.startPeriod, form.periodSpan, allMasterSlots, init._id, isNew]);
+
+  useEffect(() => {
+    if (form.room && busyRooms.has(form.room)) {
+      setForm(prev => ({ ...prev, room: '' }));
+      toast(`Room cleared: ${form.room} is occupied during this time`, '#f0c060');
+    }
+  }, [busyRooms, form.room]);
+
   function handleSubmit(e) {
     e.preventDefault();
-    const payload = { ...form, startPeriod: Number(form.startPeriod), periodSpan: Number(form.periodSpan), teachers: form.teachers.split(',').map(s=>s.trim()).filter(Boolean) };
+    if (!form.room) {
+      toast('Please select an available room', '#ff7a6a');
+      return;
+    }
+    const payload = { 
+      ...form, 
+      startPeriod: Number(form.startPeriod), 
+      periodSpan: Number(form.periodSpan), 
+      teachers: form.teachers 
+    };
     onSave(payload);
   }
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e=>e.stopPropagation()} style={{ width: 400, background: '#0a0d14', border: '1px solid rgba(99,140,255,0.3)', borderRadius: 12, padding: 24 }}>
+      <div onClick={e=>e.stopPropagation()} style={{ position: 'relative', width: 420, background: '#0a0d14', border: '1px solid rgba(99,140,255,0.3)', borderRadius: 12, padding: 24 }}>
+        
+        <button 
+          onClick={onClose} 
+          style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 28, cursor: 'pointer', lineHeight: 1 }}
+        >
+          &times;
+        </button>
+
         <h3 style={{ margin: '0 0 16px', color: '#fff' }}>{isNew ? 'Add New Class' : 'Edit Class'}</h3>
+        
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <input required placeholder="Code (e.g. ETE 2115)" value={form.courseCode} onChange={e=>setForm({...form, courseCode: e.target.value})} style={inputSt}/>
-            <select value={form.type} onChange={e=>setForm({...form, type: e.target.value})} style={inputSt}>
-              {Object.keys(COLORS).map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
+            
+            <GlassSelect 
+              value={form.type} 
+              onChange={val => setForm({...form, type: val})}
+              options={Object.keys(COLORS)}
+            />
           </div>
           
           <input placeholder="Course Title (Optional)" value={form.courseName} onChange={e=>setForm({...form, courseName: e.target.value})} style={inputSt}/>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            <select value={form.day} onChange={e=>setForm({...form, day: e.target.value})} style={inputSt}>
-              {DAYS.map(d => <option key={d} value={d}>{d.substring(0,3)}</option>)}
-            </select>
-            <select value={form.startPeriod} onChange={e=>setForm({...form, startPeriod: e.target.value})} style={inputSt}>
-              {NUM_PERIODS.map(p => <option key={p} value={p}>P{p}</option>)}
-            </select>
-            <input 
-              type="number" min="1" max="5" placeholder="Span" 
-              value={form.periodSpan} 
-              onChange={e=>setForm({...form, periodSpan: e.target.value})} 
-              disabled={['lab', 'project', 'seminar'].includes(form.type)}
-              style={{...inputSt, opacity: ['lab', 'project', 'seminar'].includes(form.type) ? 0.6 : 1}}
+          {/* Time Selection - Span is now hidden and auto-calculated */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <GlassSelect 
+              value={form.day} 
+              onChange={val => setForm({...form, day: val})}
+              options={DAYS.map(d => ({ value: d, label: d.substring(0,3) }))}
+            />
+            
+            <GlassSelect 
+              value={form.startPeriod} 
+              onChange={val => setForm({...form, startPeriod: Number(val)})}
+              options={NUM_PERIODS.map(p => ({ value: p, label: `P${p}` }))}
             />
           </div>
 
-          <input placeholder="Room (e.g. R 301 or DSP Lab)" value={form.room} onChange={e=>setForm({...form, room: e.target.value})} style={inputSt}/>
+          <GlassSelect
+            placeholder="-- Select Available Room --"
+            value={form.room}
+            onChange={val => setForm({...form, room: val})}
+            error={!form.room}
+            options={ROOMS.map(r => ({
+              value: r,
+              label: busyRooms.has(r) ? `${r} (Occupied)` : r,
+              disabled: busyRooms.has(r)
+            }))}
+          />
+
           <input placeholder="Teachers (comma separated, e.g. MKH, ST)" value={form.teachers} onChange={e=>setForm({...form, teachers: e.target.value})} style={inputSt}/>
           
-          <select value={form.batchScope} onChange={e=>setForm({...form, batchScope: e.target.value})} style={inputSt}>
-            <option value="all">All Sections</option>
-            <option value="1st30">1st 30</option>
-            <option value="2nd30">2nd 30</option>
-          </select>
+          <GlassSelect 
+            value={form.batchScope} 
+            onChange={val => setForm({...form, batchScope: val})}
+            options={[
+              { value: 'all', label: 'All Sections' },
+              { value: '1st30', label: '1st 30' },
+              { value: '2nd30', label: '2nd 30' }
+            ]}
+          />
 
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button type="submit" style={{ flex: 1, padding: 10, background: 'rgba(99,140,255,0.2)', border: '1px solid rgba(99,140,255,0.5)', color: '#a8c2ff', borderRadius: 8, fontWeight: 700 }}>Save</button>
-            {!isNew && <button type="button" onClick={()=>onDelete(init._id)} style={{ padding: '10px 16px', background: 'rgba(255,90,69,0.1)', border: '1px solid rgba(255,90,69,0.4)', color: '#ff7a6a', borderRadius: 8 }}>Delete</button>}
+            <button type="submit" style={{ flex: 1, padding: 10, background: 'rgba(99,140,255,0.2)', border: '1px solid rgba(99,140,255,0.5)', color: '#a8c2ff', borderRadius: 8, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(99,140,255,0.3)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(99,140,255,0.2)'}>Save</button>
+            {!isNew && <button type="button" onClick={()=>onDelete(init._id)} style={{ padding: '10px 16px', background: 'rgba(255,90,69,0.1)', border: '1px solid rgba(255,90,69,0.4)', color: '#ff7a6a', borderRadius: 8, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,90,69,0.2)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(255,90,69,0.1)'}>Delete</button>}
           </div>
         </form>
       </div>
