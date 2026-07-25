@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchRoutine, fetchMasterRoutine, createSlot, updateSlot, deleteSlot } from '../../services/api';
+import { fetchRoutine, fetchMasterRoutine, fetchTeachers, createSlot, updateSlot, deleteSlot } from '../../services/api';
 import { toast } from '../Toast';
 import GlassSelect from '../GlassSelect';
 import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../../data/constants';
-import Swal from 'sweetalert2';
 
 const inputSt = {
   padding: '9px 12px', background: 'rgba(255,255,255,0.04)',
@@ -23,7 +22,6 @@ function normalizeRoom(r) {
   if (!r) return "";
   const str = typeof r === 'object' ? r.roomLabel : r;
   const lower = str.toLowerCase();
-  
   if (lower.includes("301")) return "301";
   if (lower.includes("302")) return "302";
   if (lower.includes("303")) return "303";
@@ -33,7 +31,6 @@ function normalizeRoom(r) {
   if (lower.includes("electronic")) return "Electronics Lab";
   if (lower.includes("communication")) return "Communication Lab";
   if (lower.includes("antenna")) return "Antenna Lab";
-  
   return str;
 }
 
@@ -56,6 +53,7 @@ export default function RoutineBuilder({ configs }) {
   const [series, setSeries] = useState('');
   const [slots, setSlots] = useState([]);
   const [allMasterSlots, setAllMasterSlots] = useState([]);
+  const [allTeachers, setAllTeachers] = useState([]);
   const [editorModal, setEditorModal] = useState(null); 
 
   const activeConfigs = configs.filter(c => c.isActive).sort((a,b)=>b.series-a.series);
@@ -64,9 +62,14 @@ export default function RoutineBuilder({ configs }) {
   async function load() {
     if (!series) { setSlots([]); return; }
     try {
-      const [res, masterRes] = await Promise.all([fetchRoutine(series), fetchMasterRoutine('all')]);
+      const [res, masterRes, teachersRes] = await Promise.all([
+        fetchRoutine(series), 
+        fetchMasterRoutine('all'),
+        fetchTeachers()
+      ]);
       if (res.success) setSlots(res.data);
       if (masterRes.success) setAllMasterSlots(Object.values(masterRes.data).flatMap(d => d.slots || []));
+      if (teachersRes.success) setAllTeachers(teachersRes.data);
     } catch(err) { toast('Failed to load', '#ff7a6a'); }
   }
 
@@ -74,9 +77,9 @@ export default function RoutineBuilder({ configs }) {
 
   const grid = useMemo(() => buildGrid(slots), [slots]);
 
-  function checkTeacherCollisions(formData) {
+  function checkFallbackCollisions(formData) {
     const requestedPeriods = Array.from({ length: Number(formData.periodSpan) }, (_, i) => Number(formData.startPeriod) + i);
-    const requestedTeachers = formData.teachers.split(',').map(s=>s.trim()).filter(Boolean);
+    const requestedTeachers = formData.teachers;
     const editId = editorModal?.data?._id;
 
     for (const slot of allMasterSlots) {
@@ -98,7 +101,7 @@ export default function RoutineBuilder({ configs }) {
   }
 
   async function saveSlot(formData) {
-    const conflictError = checkTeacherCollisions(formData);
+    const conflictError = checkFallbackCollisions(formData);
     if (conflictError) { toast(conflictError, '#ff7a6a'); return; }
 
     try {
@@ -114,50 +117,11 @@ export default function RoutineBuilder({ configs }) {
   }
 
   async function trashSlot(id) {
-  const result = await Swal.fire({
-    title: 'Delete this class?',
-    text: 'This action cannot be undone.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, delete it',
-    cancelButtonText: 'Cancel',
-    background: '#0a0d14',
-    color: '#d0dcf0',
-    confirmButtonColor: '#ff5a45',
-    cancelButtonColor: '#30384d',
-    customClass: {
-      popup: 'glass-swal'
-    }
-  });
-
-  if (!result.isConfirmed) return;
-
-  try {
-    await deleteSlot(id);
-
-    await Swal.fire({
-      title: 'Deleted!',
-      text: 'The class has been deleted.',
-      icon: 'success',
-      background: '#0a0d14',
-      color: '#d0dcf0',
-      confirmButtonColor: '#638cff'
-    });
-
-    setEditorModal(null);
-    load();
-
-  } catch (err) {
-    Swal.fire({
-      title: 'Delete failed',
-      text: 'Something went wrong while deleting the class.',
-      icon: 'error',
-      background: '#0a0d14',
-      color: '#d0dcf0',
-      confirmButtonColor: '#ff5a45'
-    });
+    if(!window.confirm('Delete this class?')) return;
+    try {
+      await deleteSlot(id); toast('Slot deleted', '#ff7a6a'); setEditorModal(null); load();
+    } catch(err) { toast('Delete failed', '#ff7a6a'); }
   }
-}
 
   return (
     <div className="glass" style={{ borderRadius: 14, padding: 20 }}>
@@ -219,7 +183,8 @@ export default function RoutineBuilder({ configs }) {
       {editorModal && (
         <SlotEditorModal 
           modal={editorModal} 
-          allMasterSlots={allMasterSlots} 
+          allMasterSlots={allMasterSlots}
+          allTeachers={allTeachers}
           onClose={()=>setEditorModal(null)} 
           onSave={saveSlot} 
           onDelete={trashSlot} 
@@ -229,24 +194,26 @@ export default function RoutineBuilder({ configs }) {
   );
 }
 
-function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
+function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, onDelete }) {
   const isNew = modal.isNew;
   const init = modal.data;
   
-  const rawTeachers = Array.isArray(init.teachers) ? init.teachers.join(', ') : (init.teacherInitials?.join(', ') || '');
+  const initialTeachers = Array.isArray(init.teachers) ? init.teachers : (init.teacherInitials || []);
   const rawRoom = normalizeRoom(init.room);
   
-  // Calculate initial span based on the type provided
   const initType = init.type || 'theory';
   const calculatedSpan = ['lab', 'project', 'seminar'].includes(initType) ? 3 : 1;
 
   const [form, setForm] = useState({
     courseCode: init.courseCode || '', courseName: init.courseName || init.courseTitle || '',
     type: initType, day: init.day, startPeriod: init.startPeriod,
-    periodSpan: calculatedSpan, room: rawRoom, teachers: rawTeachers, batchScope: init.batchScope || 'all'
+    periodSpan: calculatedSpan, room: rawRoom, teachers: initialTeachers, batchScope: init.batchScope || 'all'
   });
 
-  // Automatically enforce the duration constraint when the type changes
+  const [showCustomTeacher, setShowCustomTeacher] = useState(false);
+  const [customTeacherText, setCustomTeacherText] = useState('');
+
+  // Auto-enforce duration constraint when type changes
   useEffect(() => {
     if (['lab', 'project', 'seminar'].includes(form.type)) {
       setForm(prev => ({ ...prev, periodSpan: 3 }));
@@ -255,12 +222,14 @@ function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
     }
   }, [form.type]);
 
-  const busyRooms = useMemo(() => {
-    const occupied = new Set();
+  // ── Calculate Busy Rooms & Teachers in Real-Time ──
+  const { busyRooms, busyTeachers } = useMemo(() => {
+    const occupiedRooms = new Set();
+    const occupiedTeachers = new Set();
     const requestedPeriods = Array.from({ length: Number(form.periodSpan) }, (_, i) => Number(form.startPeriod) + i);
 
     allMasterSlots.forEach(slot => {
-      if (!isNew && slot._id === init._id) return;
+      if (!isNew && slot._id === init._id) return; // Skip self
       if (slot.day !== form.day) return;
 
       const slotSpan = slot.periodSpan?.length || slot.periodSpan || 1;
@@ -269,12 +238,16 @@ function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
       const hasTimeOverlap = requestedPeriods.some(p => existingPeriods.includes(p));
       if (hasTimeOverlap) {
         const standardRoom = normalizeRoom(slot.room);
-        if (standardRoom) occupied.add(standardRoom);
+        if (standardRoom) occupiedRooms.add(standardRoom);
+
+        const slotTeachers = slot.teachers || slot.teacherInitials || [];
+        slotTeachers.forEach(t => occupiedTeachers.add(t));
       }
     });
-    return occupied;
+    return { busyRooms: occupiedRooms, busyTeachers: occupiedTeachers };
   }, [form.day, form.startPeriod, form.periodSpan, allMasterSlots, init._id, isNew]);
 
+  // Auto-clear room if it becomes occupied during time change
   useEffect(() => {
     if (form.room && busyRooms.has(form.room)) {
       setForm(prev => ({ ...prev, room: '' }));
@@ -282,24 +255,56 @@ function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
     }
   }, [busyRooms, form.room]);
 
+  // Auto-clear teachers if they become occupied during time change
+  useEffect(() => {
+    const newlyOccupied = form.teachers.filter(t => busyTeachers.has(t));
+    if (newlyOccupied.length > 0) {
+      setForm(prev => ({ ...prev, teachers: prev.teachers.filter(t => !busyTeachers.has(t)) }));
+      toast(`Removed occupied teachers: ${newlyOccupied.join(', ')}`, '#f0c060');
+    }
+  }, [busyTeachers, form.teachers]);
+
   function handleSubmit(e) {
     e.preventDefault();
     if (!form.room) {
       toast('Please select an available room', '#ff7a6a');
       return;
     }
+    if (form.teachers.length === 0) {
+      toast('Please assign at least one teacher', '#ff7a6a');
+      return;
+    }
     const payload = { 
       ...form, 
       startPeriod: Number(form.startPeriod), 
       periodSpan: Number(form.periodSpan), 
-      teachers: form.teachers 
+      teachers: form.teachers.filter(Boolean) 
     };
     onSave(payload);
   }
 
+  function handleTeacherSelect(val) {
+    if (val === 'OTHERS') {
+      setShowCustomTeacher(true);
+    } else if (val) {
+      if (!form.teachers.includes(val)) {
+        setForm(prev => ({ ...prev, teachers: [...prev.teachers, val] }));
+      }
+    }
+  }
+
+  function handleAddCustomTeacher() {
+    const trimmed = customTeacherText.trim().toUpperCase();
+    if (trimmed && !form.teachers.includes(trimmed)) {
+      setForm(prev => ({ ...prev, teachers: [...prev.teachers, trimmed] }));
+    }
+    setCustomTeacherText('');
+    setShowCustomTeacher(false);
+  }
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e=>e.stopPropagation()} style={{ position: 'relative', width: 420, background: '#0a0d14', border: '1px solid rgba(99,140,255,0.3)', borderRadius: 12, padding: 24 }}>
+      <div onClick={e=>e.stopPropagation()} style={{ position: 'relative', width: 440, background: '#0a0d14', border: '1px solid rgba(99,140,255,0.3)', borderRadius: 12, padding: 24 }}>
         
         <button 
           onClick={onClose} 
@@ -324,7 +329,6 @@ function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
           
           <input placeholder="Course Title (Optional)" value={form.courseName} onChange={e=>setForm({...form, courseName: e.target.value})} style={inputSt}/>
           
-          {/* Time Selection - Span is now hidden and auto-calculated */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <GlassSelect 
               value={form.day} 
@@ -351,8 +355,6 @@ function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
             }))}
           />
 
-          <input placeholder="Teachers (comma separated, e.g. MKH, ST)" value={form.teachers} onChange={e=>setForm({...form, teachers: e.target.value})} style={inputSt}/>
-          
           <GlassSelect 
             value={form.batchScope} 
             onChange={val => setForm({...form, batchScope: val})}
@@ -363,7 +365,57 @@ function SlotEditorModal({ modal, allMasterSlots, onClose, onSave, onDelete }) {
             ]}
           />
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          {/* ── Dynamic Teacher Selection ── */}
+          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 10, color: 'rgba(140,165,215,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Assigned Teachers</div>
+            
+            {/* Selected Badges */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, minHeight: 28, alignItems: 'center' }}>
+              {form.teachers.length === 0 && <span style={{ fontSize: 11, color: 'rgba(255,90,69,0.7)' }}>* No teachers selected</span>}
+              {form.teachers.map(t => (
+                <span key={t} style={{ background: 'rgba(99,140,255,0.15)', border: '1px solid rgba(99,140,255,0.3)', padding: '2px 8px', borderRadius: 6, color: '#a8c2ff', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {t}
+                  <button type="button" onClick={() => setForm(prev => ({...prev, teachers: prev.teachers.filter(x => x !== t)}))} style={{ background: 'none', border: 'none', color: '#ff7a6a', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>&times;</button>
+                </span>
+              ))}
+            </div>
+
+            {/* Dropdown / Manual Input Toggle */}
+            {!showCustomTeacher ? (
+              <GlassSelect 
+                placeholder="-- Select Teacher to Add --"
+                value={''} // Always reset so it acts as an action button
+                onChange={handleTeacherSelect}
+                options={[
+                  ...allTeachers.map(t => {
+                    const init = t.credentials?.initials || t.initials;
+                    const isBusy = busyTeachers.has(init);
+                    const isAdded = form.teachers.includes(init);
+                    return {
+                      value: init,
+                      label: isBusy ? `${init} (Occupied)` : isAdded ? `${init} (Added)` : init,
+                      disabled: isBusy || isAdded
+                    }
+                  }),
+                  { value: 'OTHERS', label: '+ Add Others (Manual)' }
+                ]}
+              />
+            ) : (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input 
+                  placeholder="Initials (e.g. MSR)" 
+                  value={customTeacherText} 
+                  onChange={e => setCustomTeacherText(e.target.value.toUpperCase())} 
+                  style={{ ...inputSt, textTransform: 'uppercase' }} 
+                  autoFocus
+                />
+                <button type="button" onClick={handleAddCustomTeacher} style={{ padding: '0 16px', borderRadius: 8, background: 'rgba(48,216,144,0.15)', color: '#30d890', border: '1px solid rgba(48,216,144,0.3)', cursor: 'pointer', fontWeight: 600 }}>Add</button>
+                <button type="button" onClick={() => setShowCustomTeacher(false)} style={{ padding: '0 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: 'none', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             <button type="submit" style={{ flex: 1, padding: 10, background: 'rgba(99,140,255,0.2)', border: '1px solid rgba(99,140,255,0.5)', color: '#a8c2ff', borderRadius: 8, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(99,140,255,0.3)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(99,140,255,0.2)'}>Save</button>
             {!isNew && <button type="button" onClick={()=>onDelete(init._id)} style={{ padding: '10px 16px', background: 'rgba(255,90,69,0.1)', border: '1px solid rgba(255,90,69,0.4)', color: '#ff7a6a', borderRadius: 8, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,90,69,0.2)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(255,90,69,0.1)'}>Delete</button>}
           </div>
