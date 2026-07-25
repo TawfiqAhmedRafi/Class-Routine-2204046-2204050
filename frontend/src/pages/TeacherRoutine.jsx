@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchMasterRoutine } from '../services/api';
-import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS, TEACHERS } from '../data/constants';
-import SlotCard from '../components/SlotCard';
+import { fetchMasterRoutine, fetchTeachers } from '../services/api';
+import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../data/constants';
 import { toast } from '../components/Toast';
 
 // PDF Generator specific to Teachers
@@ -87,31 +86,49 @@ function generateTeacherPrintHtml(teacher, slots) {
 }
 
 export default function TeacherRoutine({ user }) {
-  const [selectedInitials, setSelectedInitials] = useState(user.role === 'teacher' ? user.initials : TEACHERS[0].initials);
+  // If the user is a teacher/HOD, default to their own initials, otherwise start blank
+  const [selectedInitials, setSelectedInitials] = useState(["teacher", "hod"].includes(user?.role) ? user.initials : "");
   const [allSlots, setAllSlots] = useState([]);
+  const [teachersList, setTeachersList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    fetchMasterRoutine('all').then(res => {
-      if (res.success) {
-        // Flatten the series-keyed data into a single array of slots
-        const flattened = Object.values(res.data).flatMap(d => d.slots || []);
-        setAllSlots(flattened);
-      }
-    }).finally(() => setLoading(false));
-  }, []);
+    // Fetch the master routine AND the live list of teachers from the database concurrently
+    Promise.all([fetchMasterRoutine('all'), fetchTeachers()])
+      .then(([masterRes, teachersRes]) => {
+        if (masterRes.success) {
+          const flattened = Object.values(masterRes.data).flatMap(d => d.slots || []);
+          setAllSlots(flattened);
+        }
+        if (teachersRes.success) {
+          setTeachersList(teachersRes.data);
+          // If a student is viewing this and no initials are selected, default to the first teacher fetched
+          if (!selectedInitials && teachersRes.data.length > 0) {
+            setSelectedInitials(teachersRes.data[0].credentials.initials);
+          }
+        }
+      })
+      .catch(() => toast('Failed to load data', '#ff7a6a'))
+      .finally(() => setLoading(false));
+  }, []); // Note: leaving dependency array empty to only run on mount
 
   // Filter slots for the selected teacher
   const teacherSlots = useMemo(() => {
+    if (!selectedInitials) return [];
     return allSlots.filter(s => {
       const t = s.teachers || s.teacherInitials || [];
       return t.includes(selectedInitials);
     });
   }, [allSlots, selectedInitials]);
 
-  const activeTeacher = TEACHERS.find(t => t.initials === selectedInitials) || { name: selectedInitials, initials: selectedInitials };
+  // Find the active teacher object from the live database list
+  const activeTeacherData = teachersList.find(t => t.credentials?.initials === selectedInitials);
+  const activeTeacher = { 
+    name: activeTeacherData?.name || selectedInitials, 
+    initials: selectedInitials 
+  };
 
   // Build Grid for UI
   const grid = useMemo(() => {
@@ -182,7 +199,11 @@ export default function TeacherRoutine({ user }) {
             onChange={e => setSelectedInitials(e.target.value)}
             style={{ padding: '10px 14px', background: 'rgba(20,25,40,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#d0dcf0', outline: 'none' }}
           >
-            {TEACHERS.map(t => <option key={t.initials} value={t.initials}>{t.name} ({t.initials})</option>)}
+            {teachersList.map(t => (
+              <option key={t.credentials.initials} value={t.credentials.initials}>
+                {t.name} ({t.credentials.initials})
+              </option>
+            ))}
           </select>
           
           <button onClick={handlePrint} disabled={printing || loading} style={{

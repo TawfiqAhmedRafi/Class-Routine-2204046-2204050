@@ -3,6 +3,7 @@ import { fetchRoutine, fetchMasterRoutine, fetchTeachers, createSlot, updateSlot
 import { toast } from '../Toast';
 import GlassSelect from '../GlassSelect';
 import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../../data/constants';
+import Swal from 'sweetalert2';
 
 const inputSt = {
   padding: '9px 12px', background: 'rgba(255,255,255,0.04)',
@@ -116,12 +117,47 @@ export default function RoutineBuilder({ configs }) {
     } catch(err) { toast('Save failed', '#ff7a6a'); }
   }
 
-  async function trashSlot(id) {
-    if(!window.confirm('Delete this class?')) return;
-    try {
-      await deleteSlot(id); toast('Slot deleted', '#ff7a6a'); setEditorModal(null); load();
-    } catch(err) { toast('Delete failed', '#ff7a6a'); }
+async function trashSlot(id) {
+  const result = await Swal.fire({
+    title: 'Delete this class?',
+    text: 'This action cannot be undone.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete it',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: '#ff5a45',
+    cancelButtonColor: '#555',
+    background: '#0a0d14',
+    color: '#fff'
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    await deleteSlot(id);
+
+    await Swal.fire({
+      title: 'Deleted!',
+      text: 'The class has been deleted.',
+      icon: 'success',
+      confirmButtonColor: '#638cff',
+      background: '#0a0d14',
+      color: '#fff'
+    });
+
+    setEditorModal(null);
+    load();
+  } catch (err) {
+    Swal.fire({
+      title: 'Delete failed',
+      text: 'Something went wrong while deleting the class.',
+      icon: 'error',
+      confirmButtonColor: '#ff5a45',
+      background: '#0a0d14',
+      color: '#fff'
+    });
   }
+}
 
   return (
     <div className="glass" style={{ borderRadius: 14, padding: 20 }}>
