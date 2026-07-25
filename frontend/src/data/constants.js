@@ -129,6 +129,13 @@ export const TEACHERS = [
     role: "teacher",
     password: "1234",
   },
+  {
+    initials: "MYA",
+    name: "Dr. Md. Yeakub Ali",
+    designation: "Assistant Professor",
+    role: "teacher",
+    password: "1234",
+  },
 
   {
     initials: "RKH",

@@ -264,11 +264,48 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
   const TOP_DAYS    = ['Saturday', 'Sunday', 'Monday'];
   const BOTTOM_DAYS = ['Tuesday', 'Wednesday'];
 
-  // Teachers pulled live from the database instead of a hardcoded list
+  // Teachers pulled live from the database, ordered by designation rank:
+  // Professor & HOD → Professor → Associate Professor → Assistant Professor → Lecturer,
+  // then by seniority within that rank.
+  function designationRank(t) {
+    const role  = (t.role || '').toLowerCase();
+    const desig = (t.designation || '').toLowerCase();
+    if (role === 'hod') return 0;                                                        // Professor & HOD
+    if (desig.includes('professor') && !desig.includes('associate') && !desig.includes('assistant')) return 1; // Professor
+    if (desig.includes('associate professor')) return 2;
+    if (desig.includes('assistant professor')) return 3;
+    if (desig.includes('lecturer')) return 4;
+    return 5;
+  }
+
+  // Seniority order within a rank, matched as a whole word against the teacher's name.
+  // Update this list as seniority changes; anyone unmatched falls back to the end,
+  // sorted alphabetically.
+  const SENIORITY_ORDER = [
+    'kamal', 'fateha', 'aslam', 'yeakub', 'rakib', 'farzana', 'hasan',
+    'saif', 'sharaf', 'nahin', 'rubaeat', 'rifa', 'mahmudul', 'rakibul',
+  ];
+  function seniorityIndex(name) {
+    const words = (name || '').toLowerCase().replace(/[.,]/g, '').split(/\s+/);
+    const idx = SENIORITY_ORDER.findIndex(key => words.includes(key));
+    return idx === -1 ? SENIORITY_ORDER.length : idx;
+  }
+
   const TEACHERS = (teachersList || [])
-    .map(t => ({ init: t.credentials?.initials || '', name: t.name || '' }))
+    .map(t => ({
+      init: t.credentials?.initials || '',
+      name: t.name || '',
+      designation: t.designation || '',
+      role: t.role || '',
+    }))
     .filter(t => t.init)
-    .sort((a, b) => a.init.localeCompare(b.init));
+    .sort((a, b) => {
+      const rankDiff = designationRank(a) - designationRank(b);
+      if (rankDiff !== 0) return rankDiff;
+      const seniorityDiff = seniorityIndex(a.name) - seniorityIndex(b.name);
+      if (seniorityDiff !== 0) return seniorityDiff;
+      return a.name.localeCompare(b.name);
+    });
 
   const TIME_SCHED = [
     { period: '1st',   time: '8:00–8:50' },
