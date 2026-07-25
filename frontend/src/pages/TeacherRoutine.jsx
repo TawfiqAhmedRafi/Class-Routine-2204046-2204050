@@ -3,6 +3,7 @@ import { fetchMasterRoutine, fetchTeachers } from '../services/api';
 import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../data/constants';
 import SlotCard from '../components/SlotCard';
 import SlotModal from '../components/SlotModal';
+import GlassSelect from '../components/GlassSelect';
 import { toast } from '../components/Toast';
 
 // ── Grid builder (identical convention to RoutineView/MasterRoutine) ───────
@@ -327,7 +328,7 @@ export default function TeacherRoutine({ user }) {
     }
   }
 
-  function renderRow(day) {
+ function renderRow(day) {
     const consumed = {};
     return TIME_PERIODS.map(tp => {
       if (tp.isBreak) {
@@ -355,13 +356,16 @@ export default function TeacherRoutine({ user }) {
       }
       return (
         <td key={tp.period} colSpan={colSpan} style={{
-          padding: 5, verticalAlign: 'top',
+          padding: 5, 
           borderLeft: '1px solid rgba(255,255,255,0.04)',
+          height: '1px' // <-- TRICK: Forces the td to pass its calculated height to its children
         }}>
           {slot
             ? <SlotCard slot={slot} onClick={setModal} />
             : <div style={{
-                height: 58, borderRadius: 8,
+                height: '100%',    // <-- Stretches to fill the td
+                minHeight: 70,     // <-- Matches the minimum height of a standard SlotCard
+                borderRadius: 8,
                 background: 'rgba(255,255,255,0.012)',
                 border: '1px dashed rgba(255,255,255,0.05)',
               }} />
@@ -420,21 +424,17 @@ export default function TeacherRoutine({ user }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20, alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Teacher</span>
-          <select
-            value={selectedInitials}
-            onChange={e => setSelectedInitials(e.target.value)}
-            style={{
-              padding: '6px 12px', borderRadius: 6,
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#d0dcf0', fontSize: 12, outline: 'none',
-            }}
-          >
-            {teachersList.map(t => (
-              <option key={t.credentials.initials} value={t.credentials.initials}>
-                {t.name} ({t.credentials.initials})
-              </option>
-            ))}
-          </select>
+          <div style={{ width: 260 }}>
+            <GlassSelect
+              value={selectedInitials}
+              onChange={val => setSelectedInitials(val)}
+              options={teachersList.map(t => ({
+                value: t.credentials.initials,
+                label: `${t.name} (${t.credentials.initials})`
+              }))}
+              placeholder="Select a teacher..."
+            />
+          </div>
         </div>
 
         {/* PDF Download Button — matches RoutineView styling */}

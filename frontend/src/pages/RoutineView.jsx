@@ -401,13 +401,16 @@ export default function RoutineView({ user }) {
       }
       return (
         <td key={tp.period} colSpan={colSpan} style={{
-          padding: 5, verticalAlign: 'top',
+          padding: 5, 
           borderLeft: '1px solid rgba(255,255,255,0.04)',
+          height: '1px' // <-- TRICK: Forces the td to pass its calculated height down
         }}>
           {slot
             ? <SlotCard slot={slot} onClick={setModal} />
             : <div style={{
-                height: 58, borderRadius: 8,
+                height: '100%', // <-- Stretches to fill the td perfectly
+                minHeight: 70,  // <-- Matches the standard SlotCard min-height
+                borderRadius: 8,
                 background: 'rgba(255,255,255,0.012)',
                 border: '1px dashed rgba(255,255,255,0.05)',
               }} />
