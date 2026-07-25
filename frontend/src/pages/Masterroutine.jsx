@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { fetchMasterRoutine } from '../services/api';
+import { fetchMasterRoutine, fetchTeachers } from '../services/api';
 import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../data/constants';
 import SlotModal from '../components/SlotModal';
 import { toast } from '../components/Toast';
@@ -247,7 +247,7 @@ function SeriesGrid({ cfg, slots, seriesColor, setModal }) {
 // Series labels are rendered as an absolutely-positioned left strip so all day tables
 // share the same row heights automatically via equal min-height on <tr>.
 
-function generatePrintHtml(seriesConfigs, allData) {
+function generatePrintHtml(seriesConfigs, allData, teachersList) {
   const sortedSeries = [...seriesConfigs]
     .filter(c => c.isActive)
     .sort((a, b) => a.series - b.series);
@@ -264,19 +264,11 @@ function generatePrintHtml(seriesConfigs, allData) {
   const TOP_DAYS    = ['Saturday', 'Sunday', 'Monday'];
   const BOTTOM_DAYS = ['Tuesday', 'Wednesday'];
 
-  const TEACHERS = [
-    { init: 'MKH', name: 'Dr. Md. Kamal Hosain' },
-    { init: 'MFS', name: 'Dr. Mst. Fateha Samad' },
-    { init: 'AM',  name: 'Md. Aslam Mollah' },
-    { init: 'RKH', name: 'Md. Rakib Hossain' },
-    { init: 'FZA', name: 'Farzana Akter' },
-    { init: 'HS',  name: 'Hasan Sarker' },
-    { init: 'AIS', name: 'Abu Ismail Siddique' },
-    { init: 'ST',  name: 'Sharaf Tasnim' },
-    { init: 'NIN', name: 'Nazmul Islam Nahin' },
-    { init: 'RA',  name: 'Rubaeat Ahammed' },
-    { init: 'RTM', name: 'Rifa Tabassum Mim' },
-  ];
+  // Teachers pulled live from the database instead of a hardcoded list
+  const TEACHERS = (teachersList || [])
+    .map(t => ({ init: t.credentials?.initials || '', name: t.name || '' }))
+    .filter(t => t.init)
+    .sort((a, b) => a.init.localeCompare(b.init));
 
   const TIME_SCHED = [
     { period: '1st',   time: '8:00–8:50' },
@@ -486,6 +478,7 @@ function generatePrintHtml(seriesConfigs, allData) {
 export default function MasterRoutine({ user }) {
   const [data,          setData]          = useState({});
   const [seriesConfigs, setSeriesConfigs] = useState([]);
+  const [teachersDb,    setTeachersDb]    = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState(null);
   const [batch,         setBatch]         = useState('all');
@@ -510,6 +503,13 @@ export default function MasterRoutine({ user }) {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Load the live teacher directory once, used for the "Teachers of ETE" panel on the PDF
+  useEffect(() => {
+    fetchTeachers()
+      .then(res => { if (res.success) setTeachersDb(res.data); })
+      .catch(() => {});
+  }, []);
 
   function handleBatch(b) {
     setBatch(b);
@@ -538,8 +538,8 @@ export default function MasterRoutine({ user }) {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
 
-      // ── 2. Build the routine HTML and inject it into a hidden off-screen div ──
-      const html = generatePrintHtml(activeConfigs, data);
+      // ── 2. Build the routine HTML (with live teacher data) and inject it into a hidden off-screen div ──
+      const html = generatePrintHtml(activeConfigs, data, teachersDb);
       const container = document.createElement('div');
       // Legal landscape: 355.6mm × 215.9mm → at 96dpi: 1344 × 816 px
       container.style.cssText = [
