@@ -4,7 +4,7 @@ export default function SlotCard({ slot, onClick }) {
   const c = COLORS[slot.type] || COLORS.theory;
   const labLen = slot.periodSpan?.length || 1;
 
-  // Format the room based on type
+ // Format the room based on type
   const rawRoom = slot.room?.roomLabel || slot.room || '';
   let formattedRoom = '';
 
@@ -12,6 +12,9 @@ export default function SlotCard({ slot, onClick }) {
     const lower = rawRoom.toLowerCase();
     if (lower.includes('seminar')) {
       formattedRoom = 'Seminar';
+    } else if (lower.includes('computer')) {
+      // Add this block to explicitly catch Computer Lab
+      formattedRoom = 'CmL';
     } else if (lower.includes('lab')) {
       // Takes the first letter of the first two words (e.g., "Communications Lab" -> "CL")
       const words = rawRoom.split(/[\s-]+/).filter(Boolean);

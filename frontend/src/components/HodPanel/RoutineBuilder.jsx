@@ -16,7 +16,7 @@ const inputSt = {
 const ROOMS = [
   "301", "302", "303", "304", 
   "Seminar Room", "DSP Lab", "Electronics Lab", 
-  "Communication Lab", "Antenna Lab"
+  "Communication Lab", "Antenna Lab", "Computer Lab"
 ];
 
 function normalizeRoom(r) {
@@ -32,6 +32,7 @@ function normalizeRoom(r) {
   if (lower.includes("electronic")) return "Electronics Lab";
   if (lower.includes("communication")) return "Communication Lab";
   if (lower.includes("antenna")) return "Antenna Lab";
+  if (lower.includes("computer") || lower.includes("cml")) return "Computer Lab";
   return str;
 }
 

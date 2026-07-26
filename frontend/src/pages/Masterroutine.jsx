@@ -52,6 +52,7 @@ function formatRoom(rawRoom) {
   if (!rawRoom) return '';
   const lower = rawRoom.toLowerCase();
   if (lower.includes('seminar')) return 'Seminar';
+  if (lower.includes('computer')) return 'CmL';   // ← add this line
   if (lower.includes('lab')) {
     const words = rawRoom.split(/[\s-]+/).filter(Boolean);
     return words.length >= 2
