@@ -60,6 +60,12 @@ export const COLORS = {
     badge: "#f0a020",
     text: "#ffd580",
   },
+  thesis: {
+    bg: "rgba(255,120,150,0.15)",
+    border: "rgba(255,120,150,0.4)",
+    badge: "#ff6a80",
+    text: "#ff9ab0",
+  },
 };
 
 // ─── Series configs ─────────────────────────────────────────────────────────
@@ -489,7 +495,7 @@ export const ALL_SLOTS = [
     _id: "21_sat_1",
     day: "Saturday",
     startPeriod: 1,
-    periodSpan: [1, 2 , 3],
+    periodSpan: [1, 2, 3],
     courseCode: "ETE 4100",
     courseTitle: "Project & Thesis",
     type: "project",
@@ -1037,7 +1043,7 @@ export const ALL_SLOTS = [
     _id: "22_tue_7",
     day: "Tuesday",
     startPeriod: 7,
-    periodSpan: [7,8, 9],
+    periodSpan: [7, 8, 9],
     courseCode: "ETE 3116",
     courseTitle: "DSP LAB",
     type: "lab",
@@ -1093,7 +1099,7 @@ export const ALL_SLOTS = [
     _id: "22_wed_7",
     day: "Wednesday",
     startPeriod: 7,
-    periodSpan: [7,8, 9],
+    periodSpan: [7, 8, 9],
     courseCode: "ETE 3114",
     courseTitle: "Microwave Lab",
     type: "lab",
@@ -1738,7 +1744,6 @@ export const ALL_SLOTS = [
     semester: "even",
   },
 ];
-
 
 // ─── Mock feedback ───────────────────────────────────────────────────────────
 export const MOCK_FEEDBACK = [
