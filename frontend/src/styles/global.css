@@ -22,6 +22,22 @@
   --gold-bg:  rgba(240,190,60,0.1);
   --gold-bdr: rgba(240,190,60,0.3);
 }
+/* New Light Theme */
+[data-theme="light"] {
+  --bg:       #f4f7fb;
+  --glass:    rgba(0,0,0,0.03);
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.12);
+  --text:     #1a202c;
+  --muted:    rgba(70,90,120,0.7);
+  --blue:     #2b6cb0;
+  --blue-bg:  rgba(66,153,225,0.15);
+  --blue-bdr: rgba(66,153,225,0.4);
+  
+  --surface: rgba(0,0,0,0.03);
+  --surface-border: rgba(0,0,0,0.1);
+  --nav-bg: rgba(244,247,251,0.92);
+}
 
 html, body, #root {
   min-height: 100vh;

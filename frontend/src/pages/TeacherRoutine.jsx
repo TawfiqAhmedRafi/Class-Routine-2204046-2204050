@@ -47,11 +47,14 @@ function Skeleton() {
   );
 }
 
+// Compact abbreviation for the INTERACTIVE dark-mode grid only (used by SlotCard
+// elsewhere). The printed PDF uses the raw room text — see printRoomLine() below —
+// to match the office routine, which never abbreviates rooms.
 function formatRoom(rawRoom) {
   if (!rawRoom) return '';
   const lower = rawRoom.toLowerCase();
   if (lower.includes('seminar')) return 'Seminar';
-  if (lower.includes('computer')) return 'CmL';   // ← add this line
+  if (lower.includes('computer')) return 'CmL';
   if (lower.includes('lab')) {
     const words = rawRoom.split(/[\s-]+/).filter(Boolean);
     return words.length >= 2
@@ -62,53 +65,63 @@ function formatRoom(rawRoom) {
   return match ? match[1] : rawRoom;
 }
 
-// ── PDF Generator — mirrors RoutineView's generateSeriesPrintHtml layout ───
+// ── PDF Generator — matches MasterRoutine's plain black-and-white print format ──
+// Same rules as the master routine: no color anywhere, thin black rules only, and
+// every occupied cell is 3 centered lines: Room (raw, un-abbreviated) → Course code
+// → Series (since the teacher is already fixed, the series is what varies here).
 function generateTeacherPrintHtml(teacher, slots) {
   const grid = buildGrid(slots);
 
   const timeMap = {};
   TIME_PERIODS.filter(t => !t.isBreak).forEach(t => { timeMap[t.period] = t; });
 
-  const PC = {
-    theory:     { bg: '#dce8ff', border: '#5a8aff' },
-    lab:        { bg: '#d4f7ea', border: '#18c980' },
-    assessment: { bg: '#ffe0dc', border: '#ff5a45' },
-    seminar:    { bg: '#eedcff', border: '#b060f0' },
-    project:    { bg: '#fff0cc', border: '#f0a020' },
-  };
-
   const TIME_SCHED = [
-    { period: '1st',   time: '8:00–8:50' },
-    { period: '2nd',   time: '8:50–9:40' },
-    { period: '3rd',   time: '9:40–10:30' },
-    { period: 'Break', time: '10:30–10:50', isBreak: true },
-    { period: '4th',   time: '10:50–11:40' },
-    { period: '5th',   time: '11:40–12:30' },
-    { period: '6th',   time: '12:30–1:20' },
-    { period: 'P&LB',  time: '1:20–2:30',  isBreak: true },
-    { period: '7th',   time: '2:30–3:20' },
-    { period: '8th',   time: '3:20–4:10' },
-    { period: '9th',   time: '4:10–5:00' },
+    { period: '1st',   time: '8.00-8.50' },
+    { period: '2nd',   time: '8.50-9.40' },
+    { period: '3rd',   time: '9.40-10.30' },
+    { period: 'Break', time: '10.30-10.50' },
+    { period: '4th',   time: '10.50-11.40' },
+    { period: '5th',   time: '11.40-12.30' },
+    { period: '6th',   time: '12.30-1.20' },
+    { period: 'P&LB',  time: '1.20-2.30' },
+    { period: '7th',   time: '2.30-3.20' },
+    { period: '8th',   time: '3.20-4.10' },
+    { period: '9th',   time: '4.10-5.00' },
   ];
 
-  const ROW_H = 40;
+  const ROW_H     = 44;
+  const PANEL_GAP = 16;
+  const BORDER    = '0.75px solid #000';
+
+  const fmt = v => (v === null || v === undefined) ? '' : String(v).trim();
+
+  // Raw room text, un-abbreviated — falls back to course title / code when a slot
+  // has no plain room (e.g. project entries), same convention as MasterRoutine.
+  function printRoomLine(slot) {
+    const room = fmt(slot.room?.roomLabel || slot.room || '');
+    if (room) return room;
+    return fmt(slot.courseTitle) || fmt(slot.courseCode);
+  }
 
   function slotTd(slot, colspan) {
-    if (!slot) return `<td colspan="${colspan}" style="border:0.5px solid #ccc;background:#fafafa;padding:1px;height:${ROW_H}px;"></td>`;
-    const pc        = PC[slot.type] || PC.theory;
-    const room      = formatRoom(slot.room?.roomLabel || slot.room || '');
-    const series    = slot.series ? `Series ${slot.series}` : '';
-    const code      = slot.courseCode || '';
-    const isSpecial = slot.type === 'lab' || slot.type === 'project';
-    const title     = isSpecial ? (slot.courseTitle || code) : code;
-    return `<td colspan="${colspan}" style="border:0.5px solid #ccc;border-left:2.5px solid ${pc.border};background:${pc.bg};padding:3px 4px;vertical-align:top;overflow:hidden;height:${ROW_H}px;">
-      <div style="font-size:7.5px;font-weight:700;color:#111;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
-      ${isSpecial ? `<div style="font-size:6px;color:#444;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${code}</div>` : ''}
-      <div style="font-size:6.5px;color:#555;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${series}${room ? ' · ' + room : ''}</div>
+    if (!slot) return `<td colspan="${colspan}" style="border:${BORDER};height:${ROW_H}px;"></td>`;
+    const line1  = printRoomLine(slot);
+    const code   = fmt(slot.courseCode);
+    const series = slot.series ? `${slot.series} Series` : '';
+    return `<td colspan="${colspan}" style="border:${BORDER};padding:2px 3px;text-align:center;vertical-align:middle;height:${ROW_H}px;overflow:hidden;">
+      <div style="font-size:8px;line-height:1.3;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${line1}</div>
+      <div style="font-size:8px;line-height:1.3;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${code}</div>
+      <div style="font-size:8px;line-height:1.3;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${series}</div>
     </td>`;
   }
 
-  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  function formatDate(d) {
+    const day   = d.getDate();
+    const month = d.toLocaleDateString('en-GB', { month: 'long' });
+    const year  = d.getFullYear();
+    return `${day} ${month}, ${year}`;
+  }
+  const today = formatDate(new Date());
 
   const dayRows = DAYS.map(day => {
     const dayGrid = grid[day] || {};
@@ -124,26 +137,23 @@ function generateTeacherPrintHtml(teacher, slots) {
     }).filter(Boolean).join('');
 
     return `<tr>
-      <td style="background:#1a2a6c;color:#fff;font-size:8px;font-weight:800;letter-spacing:.06em;padding:4px 8px;border:0.5px solid #0d1a52;white-space:nowrap;text-align:center;">${day.toUpperCase()}</td>
+      <td style="border:${BORDER};color:#000;font-size:8.5px;font-weight:700;padding:4px 8px;white-space:nowrap;text-align:center;">${day.toUpperCase()}</td>
       ${cells}
     </tr>`;
   }).join('');
 
   const periodHdr = NUM_PERIODS.map(p => {
     const t = timeMap[p];
-    return `<th style="background:#e2e9f8;text-align:center;border:0.5px solid #bbb;padding:3px 2px;white-space:nowrap;min-width:80px;">
-      <span style="display:block;font-size:8px;font-weight:700;color:#1a2a6c;">P${p}</span>
-      <span style="display:block;font-size:6.5px;color:#555;">${t.start}–${t.end}</span>
+    return `<th style="border:${BORDER};text-align:center;padding:3px 2px;white-space:nowrap;min-width:80px;">
+      <span style="display:block;font-size:8.5px;font-weight:700;color:#000;">P${p}</span>
+      <span style="display:block;font-size:6.5px;color:#000;">${t.start}–${t.end}</span>
     </th>`;
   }).join('');
 
-  const timeRows = TIME_SCHED.map(r => {
-    const isBreak = r.isBreak;
-    return `<tr style="${isBreak ? 'background:#fffbe6;' : ''}">
-      <td style="font-size:7px;font-weight:${isBreak ? '700' : '600'};padding:2px 4px;border:0.5px solid #ccc;white-space:nowrap;color:${isBreak ? '#b87000' : '#111'};">${r.period}</td>
-      <td style="font-size:7px;padding:2px 4px;border:0.5px solid #ccc;white-space:nowrap;color:${isBreak ? '#b87000' : '#333'};">${r.time}</td>
-    </tr>`;
-  }).join('');
+  const timeRows = TIME_SCHED.map(r => `<tr>
+    <td style="border:${BORDER};font-size:8px;padding:4px 6px;white-space:nowrap;color:#000;">${r.period}</td>
+    <td style="border:${BORDER};font-size:8px;padding:4px 6px;white-space:nowrap;color:#000;">${r.time}</td>
+  </tr>`).join('');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -153,31 +163,32 @@ function generateTeacherPrintHtml(teacher, slots) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: legal landscape; margin: 7mm 6mm; }
-  html, body { width: 100%; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+  html, body { width: 100%; background: #fff; font-family: Arial, Helvetica, sans-serif; color: #000; }
+  table { color: #000; }
 </style>
 </head>
 <body>
 
 <!-- Header -->
-<div style="text-align:center;margin-bottom:8px;line-height:1.6;">
-  <div style="font-size:8px;font-style:italic;color:#555;">Heaven's Light is Our Guide</div>
-  <div style="font-size:9px;font-weight:700;color:#18191f;">Rajshahi University of Engineering &amp; Technology</div>
-  <div style="font-size:11px;font-weight:800;color:#18191f;">Department of Electronics &amp; Telecommunication Engineering</div>
-  <div style="font-size:11px;font-weight:700;color:#1a2a6c;">Individual Class Routine — ${teacher.name} (${teacher.initials})</div>
-  <div style="font-size:8px;color:#555;">Effective from: ${today}</div>
+<div style="text-align:center;margin-bottom:6px;line-height:1.5;">
+  <div style="font-size:8px;font-style:italic;color:#000;">Heaven's Light is Our Guide</div>
+  <div style="font-size:9px;font-weight:700;color:#000;">Rajshahi University of Engineering &amp; Technology</div>
+  <div style="font-size:10px;font-weight:800;color:#000;">Department of Electronics &amp; Telecommunication Engineering</div>
+  <div style="font-size:10px;font-weight:700;color:#000;">Individual Class Routine — ${teacher.name} (${teacher.initials})</div>
+  <div style="font-size:8px;color:#000;">Effective from ${today}</div>
 </div>
 
-<!-- Main layout: table + right panel -->
-<div style="display:flex;gap:10px;align-items:flex-start;">
+<!-- Main layout: table + right panel, separated by a real gap -->
+<div style="display:flex;gap:${PANEL_GAP}px;align-items:flex-start;">
   <div style="flex:1;min-width:0;">
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
       <colgroup>
-        <col style="width:70px;"/>
+        <col style="width:74px;"/>
         ${NUM_PERIODS.map(() => `<col/>`).join('')}
       </colgroup>
       <thead>
         <tr>
-          <th style="background:#1a2a6c;color:#fff;font-size:8px;padding:4px 6px;border:0.5px solid #0d1a52;text-align:center;">DAY</th>
+          <th style="border:${BORDER};font-size:8.5px;font-weight:700;padding:4px 6px;text-align:center;color:#000;">DAY</th>
           ${periodHdr}
         </tr>
       </thead>
@@ -185,30 +196,25 @@ function generateTeacherPrintHtml(teacher, slots) {
     </table>
   </div>
 
-  <div style="width:130px;flex-shrink:0;">
-    <div style="background:#1a2a6c;color:#fff;font-size:8px;font-weight:700;padding:3px 5px;letter-spacing:.06em;">Period &amp; Time Schedule</div>
-    <table style="border-collapse:collapse;width:100%;">${timeRows}</table>
-    <div style="margin-top:8px;padding:5px;border:0.5px solid #ccc;background:#fffbe6;">
-      <div style="font-size:6.5px;color:#888;line-height:1.6;">
-        <strong style="color:#333;">Legend:</strong><br/>
-        <span style="color:#5a8aff;">■</span> Theory &nbsp;
-        <span style="color:#18c980;">■</span> Lab<br/>
-        <span style="color:#ff5a45;">■</span> Assessment &nbsp;
-        <span style="color:#b060f0;">■</span> Seminar<br/>
-        <span style="color:#f0a020;">■</span> Project
-      </div>
-    </div>
+  <div style="width:150px;flex-shrink:0;display:flex;flex-direction:column;">
+    <div style="text-align:right;font-size:7.5px;color:#000;padding:0 2px 5px;">P&amp;LB = Prayer &amp; Lunch Break</div>
+    <table style="border-collapse:collapse;width:100%;">
+      <tr>
+        <th style="border:${BORDER};font-size:8px;font-weight:700;padding:4px;color:#000;">Period</th>
+        <th style="border:${BORDER};font-size:8px;font-weight:700;padding:4px;color:#000;">Time Schedule</th>
+      </tr>
+      ${timeRows}
+    </table>
   </div>
 </div>
 
 <!-- Footer -->
-<div style="margin-top:10px;display:flex;justify-content:space-between;align-items:flex-end;">
-  <div style="font-size:7px;color:#555;line-height:1.7;">
-    <strong>Note:</strong> P&amp;LB = Prayer &amp; Lunch Break (1:20–2:30) &nbsp;|&nbsp; Break (10:30–10:50)<br/>
-    Multi-period labs span merged columns.<br/>
-    <span style="color:#aaa;">Printed: ${today}</span>
+<div style="margin-top:14px;display:flex;justify-content:space-between;align-items:flex-end;">
+  <div style="font-size:12px;color:#000;line-height:1.6;">
+    <strong>Note: Please follow this routine strictly</strong><br/>
+    "There will be no further change"
   </div>
-  <div style="text-align:right;font-size:7px;color:#333;line-height:1.7;">
+  <div style="text-align:right;font-size:12px;color:#000;line-height:1.8;">
     Head of the Dept: _______________<br/>
     <strong>Prof. Dr. Md. Kamal Hosain</strong>
   </div>
