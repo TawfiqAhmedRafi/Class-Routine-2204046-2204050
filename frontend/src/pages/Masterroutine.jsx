@@ -4,7 +4,8 @@ import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../data/constants';
 import SlotModal from '../components/SlotModal';
 import { toast } from '../components/Toast';
 
-// Series label colors to distinguish series rows visually
+// Series label colors to distinguish series rows visually (interactive dark UI only —
+// the printed PDF is intentionally black & white, see generatePrintHtml below)
 const SERIES_COLORS = [
   { accent: '#a8c2ff', bg: 'rgba(60,100,220,0.12)',  border: 'rgba(99,140,255,0.22)'  },
   { accent: '#7fffd4', bg: 'rgba(20,180,120,0.10)',  border: 'rgba(40,210,140,0.22)'  },
@@ -12,15 +13,6 @@ const SERIES_COLORS = [
   { accent: '#ddb8ff', bg: 'rgba(160,80,220,0.10)',  border: 'rgba(200,120,255,0.22)' },
   { accent: '#ffb0a8', bg: 'rgba(220,80,60,0.10)',   border: 'rgba(255,110,90,0.22)'  },
 ];
-
-// Print-friendly type colors (light bg for white paper)
-const PRINT_COLORS = {
-  theory:     { bg: '#dce8ff', border: '#5a8aff', text: '#1a3a8c' },
-  lab:        { bg: '#d4f7ea', border: '#18c980', text: '#0a5e3a' },
-  assessment: { bg: '#ffe0dc', border: '#ff5a45', text: '#8c1a0a' },
-  seminar:    { bg: '#eedcff', border: '#b060f0', text: '#5a1a8c' },
-  project:    { bg: '#fff0cc', border: '#f0a020', text: '#7c4a00' },
-};
 
 function buildGrid(slots) {
   const grid = {};
@@ -47,12 +39,14 @@ function buildGrid(slots) {
   return grid;
 }
 
-// Format room label for display
+// Format room label for the INTERACTIVE dark-mode grid only (compact abbreviation
+// makes sense in the small on-screen cards). The printed PDF uses the raw text —
+// see printRoomLine() below — because the office routine never abbreviates rooms.
 function formatRoom(rawRoom) {
   if (!rawRoom) return '';
   const lower = rawRoom.toLowerCase();
   if (lower.includes('seminar')) return 'Seminar';
-  if (lower.includes('computer')) return 'CmL';   // ← add this line
+  if (lower.includes('computer')) return 'CmL';
   if (lower.includes('lab')) {
     const words = rawRoom.split(/[\s-]+/).filter(Boolean);
     return words.length >= 2
@@ -240,13 +234,18 @@ function SeriesGrid({ cfg, slots, seriesColor, setModal }) {
   );
 }
 
-// ── PDF Print View — faithful copy of the printed reference ───────────────
-// Strategy: instead of one giant merged table (which breaks with colspan slots),
-// use a CSS-grid/flex outer shell with SEPARATE tables per day that are forced
-// to identical widths. Each table is independent so colspan never bleeds across days.
-// The "gap" between days is just margin/padding on the wrapper — no blue <td> in headers.
-// Series labels are rendered as an absolutely-positioned left strip so all day tables
-// share the same row heights automatically via equal min-height on <tr>.
+// ── PDF Print View — pixel-faithful reproduction of the official office routine ──
+// The real routine (see reference PDF) is a single, plain black-and-white grid:
+//   • One merged table per day-block (Sat/Sun/Mon on top, Tue/Wed on bottom),
+//     with a narrow "Day → / →Period" label column, then 9 period columns PER DAY,
+//     all inside ONE <table> so borders and colspans line up across the whole block.
+//   • Every occupied cell is exactly 3 stacked lines, centered, no color, no accent
+//     border: Room (or lab/lecture title when there's no plain room) → Course code
+//     → Teacher initials.
+//   • Left row-label column: "EVEN SEM" / "(21 Series)" stacked, bold, left-aligned.
+//   • Bottom-right: "Teachers of ETE" and "Period & Time Schedule" as their own
+//     small plain tables, with a "P&LB = Prayer & Lunch Break" note above them.
+// No fills, no accent colors anywhere — only black text on white with thin black rules.
 
 function generatePrintHtml(seriesConfigs, allData, teachersList) {
   const sortedSeries = [...seriesConfigs]
@@ -259,8 +258,6 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
   });
 
   const periods = NUM_PERIODS; // [1..9]
-  const timeMap = {};
-  TIME_PERIODS.filter(t => !t.isBreak).forEach(t => { timeMap[t.period] = t; });
 
   const TOP_DAYS    = ['Saturday', 'Sunday', 'Monday'];
   const BOTTOM_DAYS = ['Tuesday', 'Wednesday'];
@@ -271,17 +268,14 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
   function designationRank(t) {
     const role  = (t.role || '').toLowerCase();
     const desig = (t.designation || '').toLowerCase();
-    if (role === 'hod') return 0;                                                        // Professor & HOD
-    if (desig.includes('professor') && !desig.includes('associate') && !desig.includes('assistant')) return 1; // Professor
+    if (role === 'hod') return 0;
+    if (desig.includes('professor') && !desig.includes('associate') && !desig.includes('assistant')) return 1;
     if (desig.includes('associate professor')) return 2;
     if (desig.includes('assistant professor')) return 3;
     if (desig.includes('lecturer')) return 4;
     return 5;
   }
 
-  // Seniority order within a rank, matched as a whole word against the teacher's name.
-  // Update this list as seniority changes; anyone unmatched falls back to the end,
-  // sorted alphabetically.
   const SENIORITY_ORDER = [
     'kamal', 'fateha', 'aslam', 'yeakub', 'rakib', 'farzana', 'hasan',
     'saif', 'sharaf', 'nahin', 'rubaeat', 'rifa', 'mahmudul', 'rakibul',
@@ -309,158 +303,150 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
     });
 
   const TIME_SCHED = [
-    { period: '1st',   time: '8:00–8:50' },
-    { period: '2nd',   time: '8:50–9:40' },
-    { period: '3rd',   time: '9:40–10:30' },
-    { period: 'Break', time: '10:30–10:50', isBreak: true },
-    { period: '4th',   time: '10:50–11:40' },
-    { period: '5th',   time: '11:40–12:30' },
-    { period: '6th',   time: '12:30–1:20' },
-    { period: 'P&LB',  time: '1:20–2:30',  isBreak: true },
-    { period: '7th',   time: '2:30–3:20' },
-    { period: '8th',   time: '3:20–4:10' },
-    { period: '9th',   time: '4:10–5:00' },
+    { period: '1st',   time: '8.00-8.50' },
+    { period: '2nd',   time: '8.50-9.40' },
+    { period: '3rd',   time: '9.40-10.30' },
+    { period: 'Break', time: '10.30-10.50' },
+    { period: '4th',   time: '10.50-11.40' },
+    { period: '5th',   time: '11.40-12.30' },
+    { period: '6th',   time: '12.30-1.20' },
+    { period: 'P&LB',  time: '1.20-2.30' },
+    { period: '7th',   time: '2.30-3.20' },
+    { period: '8th',   time: '3.20-4.10' },
+    { period: '9th',   time: '4.10-5.00' },
   ];
 
-  const ROW_STYLES = [
-    { labelBg: '#d6e4ff', labelColor: '#1a3a8c', rowBg: '#f5f8ff' },
-    { labelBg: '#d4f4e8', labelColor: '#0a5e3a', rowBg: '#f0fbf5' },
-    { labelBg: '#fde8d0', labelColor: '#7c3a00', rowBg: '#fffaf5' },
-    { labelBg: '#e8d8ff', labelColor: '#5a1a8c', rowBg: '#faf5ff' },
-    { labelBg: '#ffd6d0', labelColor: '#8c1a0a', rowBg: '#fff5f4' },
-  ];
+  // ── Layout constants (px, at the 1344px-wide capture container used below) ──
+  const LABEL_COL   = 72;   // "Day →" / series-label column
+  const PERIOD_COL  = 45;   // each of the 9 period columns
+  const PANEL_W     = 9 * PERIOD_COL; // right panel = width of one day-block (405px)
+  const ROW_H       = 42;   // data row height (fits 3 stacked lines)
+  const HEAD1_H     = 18;   // "Day →" / day-name row
+  const HEAD2_H     = 16;   // "→Period" / period-number row
+  const BORDER      = '0.75px solid #000';
 
-  const PC = {
-    theory:     { bg: '#dce8ff', border: '#5a8aff' },
-    lab:        { bg: '#d4f7ea', border: '#18c980' },
-    assessment: { bg: '#ffe0dc', border: '#ff5a45' },
-    seminar:    { bg: '#eedcff', border: '#b060f0' },
-    project:    { bg: '#fff0cc', border: '#f0a020' },
-  };
+  const fmt = v => (v === null || v === undefined) ? '' : String(v).trim();
 
-  const ROW_H = 38; // px — fixed row height so all day tables align
+  // Raw room text as entered in the routine — NOT abbreviated. Falls back to the
+  // course title (then course code) when a slot has no room, matching entries
+  // like "Project Design and Development II" which print with no room number.
+  function printRoomLine(slot) {
+    const room = fmt(slot.room?.roomLabel || slot.room || '');
+    if (room) return room;
+    return fmt(slot.courseTitle) || fmt(slot.courseCode);
+  }
 
-  // ── Slot cell ─────────────────────────────────────────────────────────────
-  function slotTd(slot, colspan, rowBg) {
-    if (!slot) return `<td colspan="${colspan}" style="border:0.5px solid #ccc;background:${rowBg};padding:1px;height:${ROW_H}px;"></td>`;
-    const pc        = PC[slot.type] || PC.theory;
-    const room      = formatRoom(slot.room?.roomLabel || slot.room || '');
-    const teacher   = (slot.teachers || slot.teacherInitials || []).join('/');
-    const code      = slot.courseCode || '';
-    const isSpecial = slot.type === 'lab' || slot.type === 'project';
-    const title     = isSpecial ? (slot.courseTitle || code) : code;
-    return `<td colspan="${colspan}" style="border:0.5px solid #ccc;border-left:2.5px solid ${pc.border};background:${pc.bg};padding:2px 3px;vertical-align:top;overflow:hidden;height:${ROW_H}px;">
-      <div style="font-size:6.5px;font-weight:700;color:#111;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
-      ${isSpecial ? `<div style="font-size:5.5px;color:#444;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${code}</div>` : ''}
-      <div style="font-size:5.5px;color:#555;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${teacher}${room ? ' · ' + room : ''}</div>
+  // One data cell: 3 centered lines, no fill, no accent border — plain B&W.
+  function printCell(slot, colspan) {
+    if (!slot) {
+      return `<td colspan="${colspan}" style="border:${BORDER};height:${ROW_H}px;"></td>`;
+    }
+    const line1   = printRoomLine(slot);
+    const code    = fmt(slot.courseCode);
+    const teacher = (slot.teachers || slot.teacherInitials || []).filter(Boolean).join('/');
+    return `<td colspan="${colspan}" style="border:${BORDER};padding:1px 2px;text-align:center;vertical-align:middle;height:${ROW_H}px;overflow:hidden;">
+      <div style="font-size:7.5px;line-height:1.25;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${line1}</div>
+      <div style="font-size:7.5px;line-height:1.25;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${code}</div>
+      <div style="font-size:7.5px;line-height:1.25;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${teacher}</div>
     </td>`;
   }
 
-  // ── Build ONE day table (no label column — labels are in a separate left strip) ──
-  function buildOneDayTable(day) {
-    // Period header row
-    const periodHdr = periods.map(p => {
-      const t = timeMap[p];
-      return `<th style="background:#e2e9f8;text-align:center;border:0.5px solid #bbb;padding:1px 0;white-space:nowrap;">
-        <span style="display:block;font-size:6.5px;font-weight:700;color:#1a2a6c;">P${p}</span>
-        <span style="display:block;font-size:5px;color:#555;">${t.start}</span>
-      </th>`;
-    }).join('');
+  // ── One merged table for a block of days (top = 3 days, bottom = 2 days) ──
+  function buildDayBlockTable(daysList) {
+    const totalW = LABEL_COL + daysList.length * periods.length * PERIOD_COL;
 
-    // Data rows
-    const bodyRows = sortedSeries.map((cfg, idx) => {
-      const rs       = ROW_STYLES[idx % ROW_STYLES.length];
-      const dayGrid  = grids[cfg.series][day] || {};
-      const consumed = {};
-      const cells = periods.map(p => {
-        if (consumed[p]) return null;
-        const val  = dayGrid[p];
-        if (val === 'CONSUMED') return null;
-        const slot = val || null;
-        const span = slot ? (slot.periodSpan?.length || 1) : 1;
-        if (slot) (slot.periodSpan || []).slice(1).forEach(pp => { consumed[pp] = true; });
-        return slotTd(slot, span, rs.rowBg);
-      }).filter(Boolean).join('');
-      return `<tr style="height:${ROW_H}px;">${cells}</tr>`;
-    }).join('');
+    const colgroup = `<colgroup>
+      <col style="width:${LABEL_COL}px"/>
+      ${daysList.map(() => periods.map(() => `<col style="width:${PERIOD_COL}px"/>`).join('')).join('')}
+    </colgroup>`;
 
-    // colgroup: 9 equal columns, table-layout:fixed
-    const colgroup = `<colgroup>${periods.map(() => `<col/>`).join('')}</colgroup>`;
-
-    return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;">
-      <!-- Day name banner -->
-      <div style="background:#1a2a6c;color:#fff;text-align:center;font-size:8px;font-weight:800;letter-spacing:.08em;padding:3px 0;border:0.5px solid #0d1a52;">${day.toUpperCase()}</div>
-      <!-- Period/data table -->
-      <table style="width:100%;border-collapse:collapse;table-layout:fixed;flex:1;">
-        ${colgroup}
-        <thead>
-          <tr>${periodHdr}</tr>
-        </thead>
-        <tbody>${bodyRows}</tbody>
-      </table>
-    </div>`;
-  }
-
-  // ── Series label strip (left column, same height as day tables) ───────────
-  // We render a tiny table with the same row heights so it lines up.
-  function buildLabelStrip() {
-    // Header area: day banner height (≈18px) + period header height (≈18px) = 36px
-    const headerPlaceholder = `<div style="height:36px;background:#1a2a6c;border:0.5px solid #0d1a52;display:flex;align-items:center;justify-content:center;">
-      <span style="font-size:6px;font-weight:700;color:rgba(255,255,255,0.6);letter-spacing:.08em;">Series</span>
-    </div>`;
-    const rows = sortedSeries.map((cfg, idx) => {
-      const rs       = ROW_STYLES[idx % ROW_STYLES.length];
-      const semLabel = cfg.currentSemester === 'odd' ? 'ODD SEM' : 'EVEN SEM';
-      return `<div style="height:${ROW_H}px;display:flex;align-items:center;justify-content:center;background:${rs.labelBg};border:0.5px solid #bbb;border-right:2.5px solid ${rs.labelColor};padding:2px;">
-        <div style="text-align:center;color:${rs.labelColor};font-size:6px;font-weight:800;line-height:1.4;">
-          ${semLabel}<br/><span style="font-size:7.5px;">${cfg.series} Series</span>
-        </div>
-      </div>`;
-    }).join('');
-    return `<div style="width:50px;flex-shrink:0;display:flex;flex-direction:column;">
-      ${headerPlaceholder}
-      ${rows}
-    </div>`;
-  }
-
-  // ── Half-page block (label strip + day tables side by side) ───────────────
-  function buildHalf(days) {
-    const dayTables = days.map(d => buildOneDayTable(d)).join('');
-    return `<div style="display:flex;gap:5px;align-items:stretch;">
-      ${buildLabelStrip()}
-      ${dayTables}
-    </div>`;
-  }
-
-  // ── Teachers + Time panel ─────────────────────────────────────────────────
-  const teacherRows = TEACHERS.map(t =>
-    `<tr>
-      <td style="font-size:6px;font-weight:700;color:#1a2a6c;padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;">${t.init}</td>
-      <td style="font-size:6px;padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;color:#18191f;">${t.name}</td>
-    </tr>`
-  ).join('');
-
-  const timeRows = TIME_SCHED.map(r => {
-    const isBreak = r.isBreak;
-    return `<tr style="${isBreak ? 'background:#fffbe6;' : ''}">
-      <td style="font-size:6px;font-weight:${isBreak ? '700' : '600'};padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;color:${isBreak ? '#b87000' : '#111'};">${r.period}</td>
-      <td style="font-size:6px;padding:1px 3px;border:0.5px solid #ccc;white-space:nowrap;color:${isBreak ? '#b87000' : '#333'};">${r.time}</td>
+    const dayHeaderRow = `<tr>
+      <th style="border:${BORDER};font-size:7px;font-weight:700;height:${HEAD1_H}px;">Day →</th>
+      ${daysList.map(d => `<th colspan="${periods.length}" style="border:${BORDER};font-size:9px;font-weight:700;height:${HEAD1_H}px;">${d}</th>`).join('')}
     </tr>`;
-  }).join('');
 
-  const rightPanel = `
-    <div style="width:150px;flex-shrink:0;display:flex;flex-direction:column;gap:3px;margin-left:4px;">
-      <div>
-        <div style="background:#1a2a6c;color:#fff;font-size:7px;font-weight:700;padding:2px 4px;letter-spacing:.06em;">Teachers of ETE</div>
-        <table style="border-collapse:collapse;width:100%;">${teacherRows}</table>
-      </div>
-      <div>
-        <div style="background:#1a2a6c;color:#fff;font-size:7px;font-weight:700;padding:2px 4px;letter-spacing:.06em;">Period &amp; Time Schedule</div>
-        <table style="border-collapse:collapse;width:100%;">${timeRows}</table>
+    const periodHeaderRow = `<tr>
+      <th style="border:${BORDER};font-size:6.5px;font-weight:700;height:${HEAD2_H}px;">→Period</th>
+      ${daysList.map(() => periods.map(p => `<th style="border:${BORDER};font-size:7.5px;font-weight:700;height:${HEAD2_H}px;">${p}</th>`).join('')).join('')}
+    </tr>`;
+
+    const bodyRows = sortedSeries.map(cfg => {
+      const semLabel = cfg.currentSemester === 'odd' ? 'ODD SEM' : 'EVEN SEM';
+      const dayCells = daysList.map(day => {
+        const dayGrid  = grids[cfg.series][day] || {};
+        const consumed = {};
+        return periods.map(p => {
+          if (consumed[p]) return '';
+          const val = dayGrid[p];
+          if (val === 'CONSUMED') return '';
+          const slot = val || null;
+          const span = slot ? (slot.periodSpan?.length || 1) : 1;
+          if (slot) (slot.periodSpan || []).slice(1).forEach(pp => { consumed[pp] = true; });
+          return printCell(slot, span);
+        }).join('');
+      }).join('');
+
+      return `<tr>
+        <td style="border:${BORDER};padding:2px 4px;text-align:left;vertical-align:middle;height:${ROW_H}px;">
+          <div style="font-size:7.5px;font-weight:700;color:#000;white-space:nowrap;">${semLabel}</div>
+          <div style="font-size:7.5px;font-weight:700;color:#000;white-space:nowrap;">(${cfg.series} Series)</div>
+        </td>
+        ${dayCells}
+      </tr>`;
+    }).join('');
+
+    return `<table style="width:${totalW}px;border-collapse:collapse;table-layout:fixed;">
+      ${colgroup}
+      <thead>${dayHeaderRow}${periodHeaderRow}</thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
+  }
+
+  // ── Right-side panel: P&LB note + Teachers of ETE + Period & Time Schedule ──
+  function buildRightPanel() {
+    const teacherRows = TEACHERS.map(t => `<tr>
+      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${t.init}</td>
+      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${t.name}</td>
+    </tr>`).join('');
+
+    const timeRows = TIME_SCHED.map(r => `<tr>
+      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${r.period}</td>
+      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${r.time}</td>
+    </tr>`).join('');
+
+    return `<div style="width:${PANEL_W}px;flex-shrink:0;display:flex;flex-direction:column;">
+      <div style="text-align:right;font-size:7px;color:#000;padding:0 2px 3px;">P&amp;LB = Prayer &amp; Lunch Break</div>
+      <div style="display:flex;gap:6px;">
+        <table style="border-collapse:collapse;flex:1;">
+          <tr><th colspan="2" style="border:${BORDER};font-size:7.5px;font-weight:700;padding:2px;color:#000;">Teachers of ETE</th></tr>
+          ${teacherRows}
+        </table>
+        <table style="border-collapse:collapse;flex:1;">
+          <tr>
+            <th style="border:${BORDER};font-size:7px;font-weight:700;padding:2px;color:#000;">Period</th>
+            <th style="border:${BORDER};font-size:7px;font-weight:700;padding:2px;color:#000;">Time Schedule</th>
+          </tr>
+          ${timeRows}
+        </table>
       </div>
     </div>`;
+  }
 
-  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  function formatSeriesList(nums) {
+    if (nums.length === 0) return '';
+    if (nums.length === 1) return `${nums[0]}`;
+    return `${nums.slice(0, -1).join(', ')} & ${nums[nums.length - 1]}`;
+  }
+
+  function formatDate(d) {
+    const day   = d.getDate();
+    const month = d.toLocaleDateString('en-GB', { month: 'long' });
+    const year  = d.getFullYear();
+    return `${day} ${month}, ${year}`;
+  }
+
+  const today      = formatDate(new Date());
+  const seriesLine = formatSeriesList(sortedSeries.map(c => c.series));
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -470,39 +456,39 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { size: legal landscape; margin: 7mm 6mm; }
-  html, body { width: 100%; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+  html, body { width: 100%; background: #fff; font-family: Arial, Helvetica, sans-serif; color: #000; }
+  table { color: #000; }
 </style>
 </head>
 <body>
 
 <!-- ── Page Header ── -->
-<div style="text-align:center;margin-bottom:5px;line-height:1.55;">
-  <div style="font-size:7px;font-style:italic;color:#555;">Heaven's Light is Our Guide</div>
-  <div style="font-size:8px;font-weight:700;color:#18191f;">Rajshahi University of Engineering &amp; Technology</div>
-  <div style="font-size:9px;font-weight:800;color:#18191f;">Department of Electronics &amp; Telecommunication Engineering</div>
-  <div style="font-size:9px;font-weight:700; color:#18191f;">Class Routine for all Series</div>
-  <div style="font-size:7px;color:#555;">Effective from \`${today}\` </div>
+<div style="text-align:center;margin-bottom:6px;line-height:1.5;">
+  <div style="font-size:8px;font-style:italic;color:#000;">Heaven's Light is Our Guide</div>
+  <div style="font-size:9px;font-weight:700;color:#000;">Rajshahi University of Engineering &amp; Technology</div>
+  <div style="font-size:10px;font-weight:800;color:#000;">Department of Electronics &amp; Telecommunication Engineering</div>
+  <div style="font-size:10px;font-weight:700;color:#000;">Class Routine for ${seriesLine} Series</div>
+  <div style="font-size:8px;color:#000;">Effective from ${today}</div>
 </div>
 
 <!-- ── TOP: Saturday | Sunday | Monday ── -->
 <div style="margin-bottom:6px;">
-  ${buildHalf(TOP_DAYS)}
+  ${buildDayBlockTable(TOP_DAYS)}
 </div>
 
 <!-- ── BOTTOM: Tuesday | Wednesday  +  right panel ── -->
 <div style="display:flex;align-items:flex-start;gap:0;">
-  <div style="flex:1;min-width:0;">${buildHalf(BOTTOM_DAYS)}</div>
-  ${rightPanel}
+  ${buildDayBlockTable(BOTTOM_DAYS)}
+  ${buildRightPanel()}
 </div>
 
 <!-- ── Footer ── -->
-<div style="margin-top:6px;display:flex;justify-content:space-between;align-items:flex-end;">
-  <div style="font-size:6.5px;color:#333;line-height:1.7;">
+<div style="margin-top:14px;display:flex;justify-content:space-between;align-items:flex-end;">
+  <div style="font-size:12px;color:#000;line-height:1.6;">
     <strong>Note: Please follow this routine strictly</strong><br/>
-    &quot; There will be no further change &quot;<br/>
-    <span style="color:#888;">P&amp;LB = Prayer &amp; Lunch Break &nbsp;|&nbsp; Printed: ${today}</span>
+    "There will be no further change"
   </div>
-  <div style="text-align:right;font-size:6.5px;color:#333;line-height:1.7;">
+  <div style="text-align:right;font-size:12px;color:#000;line-height:1.8;">
     Head of the Dept: _______________<br/>
     <strong>Prof. Dr. Md. Kamal Hosain</strong>
   </div>
@@ -609,7 +595,6 @@ export default function MasterRoutine({ user }) {
       await new Promise(r => setTimeout(r, 400));
 
       // ── 3. Capture with html2canvas at fixed legal-page height ──
-      // Legal landscape px at 96dpi: 1344 wide × 816 tall
       const LEGAL_PX_W = 1344;
       const LEGAL_PX_H = 816;
 
@@ -628,7 +613,6 @@ export default function MasterRoutine({ user }) {
 
       // ── 4. Place on one legal landscape page ──
       const { jsPDF } = window.jspdf;
-      // Legal: 355.6 × 215.9 mm
       const PAGE_W = 355.6, PAGE_H = 215.9;
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'legal' });
 
@@ -824,7 +808,7 @@ export default function MasterRoutine({ user }) {
         Shows all active series simultaneously. Each series uses its current HOD-configured semester.
         Click any slot to view details. Use the Batch filter to see specific group schedules.
         Use <strong style={{ color: 'rgba(240,200,100,0.85)' }}>Download PDF</strong> to print the
-        official A3-landscape routine with all 5 days as separate grids.
+        official Legal-landscape routine matching the office format, with all 5 days as separate grids.
       </div>
 
       {modal && <SlotModal slot={modal} onClose={() => setModal(null)} />}
