@@ -11,7 +11,6 @@ export default function SlotModal({ slot, onClose }) {
 
   const c = COLORS[slot.type] || COLORS.theory;
 
-  // Normalize periodSpan — backend stores integer count, frontend uses array
   const spanArr = (() => {
     if (Array.isArray(slot.periodSpan)) return slot.periodSpan;
     if (typeof slot.periodSpan === 'number') {
@@ -25,7 +24,6 @@ export default function SlotModal({ slot, onClose }) {
     return tp ? `P${p} (${tp.start}–${tp.end})` : `P${p}`;
   });
 
-  // Normalize teacher field — backend: teachers[], frontend legacy: teacherInitials[]
   const teachers = slot.teachers || slot.teacherInitials || [];
 
   const metaItems = [
@@ -38,7 +36,7 @@ export default function SlotModal({ slot, onClose }) {
   function handleSubmit() {
     if (fbOk === null) return;
     setSubmitted(true);
-    toast('Feedback submitted!', '#30d890', 'rgba(48,216,144,0.4)');
+    toast('Feedback submitted!', 'var(--green)', 'var(--green-bdr)');
     setTimeout(onClose, 1800);
   }
 
@@ -56,7 +54,7 @@ export default function SlotModal({ slot, onClose }) {
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 420,
-          background: 'rgba(10,13,22,0.97)',
+          background: 'var(--nav-bg)',
           border: `1px solid ${c.border}`,
           borderRadius: 16, padding: 28,
           backdropFilter: 'blur(24px)',
@@ -70,7 +68,7 @@ export default function SlotModal({ slot, onClose }) {
           style={{
             position: 'absolute', top: 14, right: 14,
             background: 'none', border: 'none',
-            color: 'rgba(140,165,215,0.5)', fontSize: 22, lineHeight: 1,
+            color: 'var(--text-muted)', fontSize: 22, lineHeight: 1,
             cursor: 'pointer',
           }}
         >×</button>
@@ -81,31 +79,31 @@ export default function SlotModal({ slot, onClose }) {
         }}>
           {slot.type} · {slot.day}
         </div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e8f0ff', margin: '0 0 4px' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>
           {slot.courseCode}
         </h2>
-        <p style={{ color: 'rgba(180,195,225,0.75)', fontSize: 14, margin: '0 0 20px' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 20px' }}>
           {slot.courseTitle || slot.courseName}
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
           {metaItems.map(([label, val]) => (
             <div key={label} style={{
-              background: 'rgba(255,255,255,0.04)',
+              background: 'var(--surface)',
               borderRadius: 8, padding: '10px 12px',
             }}>
               <div style={{
-                fontSize: 10, color: 'rgba(140,160,200,0.65)',
+                fontSize: 10, color: 'var(--text-muted)',
                 letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4,
               }}>{label}</div>
-              <div style={{ fontSize: 13, color: '#d0dcf0', fontWeight: 600 }}>{val}</div>
+              <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{val}</div>
             </div>
           ))}
         </div>
 
         <div style={{ marginBottom: 18 }}>
           <div style={{
-            fontSize: 10, color: 'rgba(140,160,200,0.6)',
+            fontSize: 10, color: 'var(--text-muted)',
             letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8,
           }}>Time Slots</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -119,30 +117,30 @@ export default function SlotModal({ slot, onClose }) {
           </div>
         </div>
 
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '0 0 16px' }} />
+        <div style={{ height: 1, background: 'var(--surface-border)', margin: '0 0 16px' }} />
 
         {submitted ? (
-          <div style={{ textAlign: 'center', padding: '14px 0', color: '#30d890', fontSize: 14, fontWeight: 600 }}>
+          <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--green)', fontSize: 14, fontWeight: 600 }}>
             ✓ Feedback submitted. Thank you.
           </div>
         ) : (
           <div>
             <div style={{
-              fontSize: 11, color: 'rgba(140,160,200,0.75)',
+              fontSize: 11, color: 'var(--text-muted)',
               letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10,
             }}>Is this slot okay?</div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               {[
-                { val: true,  label: '✓ Yes', activeC: '#30d890', activeBg: 'rgba(48,216,144,0.15)', activeBdr: 'rgba(48,216,144,0.5)' },
-                { val: false, label: '✗ No',  activeC: '#ff7a6a', activeBg: 'rgba(255,90,69,0.15)',  activeBdr: 'rgba(255,90,69,0.45)' },
+                { val: true,  label: '✓ Yes', activeC: 'var(--green)', activeBg: 'var(--green-bg)', activeBdr: 'var(--green-bdr)' },
+                { val: false, label: '✗ No',  activeC: 'var(--red)', activeBg: 'var(--red-bg)',  activeBdr: 'var(--red-bdr)' },
               ].map(opt => {
                 const isActive = fbOk === opt.val;
                 return (
                   <button key={String(opt.val)} onClick={() => setFbOk(opt.val)} style={{
                     flex: 1, padding: 8, borderRadius: 8, fontSize: 13, fontWeight: 600,
-                    border: `1px solid ${isActive ? opt.activeBdr : 'rgba(255,255,255,0.1)'}`,
-                    background: isActive ? opt.activeBg : 'rgba(255,255,255,0.04)',
-                    color: isActive ? opt.activeC : 'rgba(180,195,225,0.55)',
+                    border: `1px solid ${isActive ? opt.activeBdr : 'var(--surface-border)'}`,
+                    background: isActive ? opt.activeBg : 'var(--surface)',
+                    color: isActive ? opt.activeC : 'var(--text-muted)',
                     transition: 'all 0.15s', cursor: 'pointer',
                   }}>{opt.label}</button>
                 );
@@ -160,9 +158,9 @@ export default function SlotModal({ slot, onClose }) {
               style={{
                 width: '100%', padding: 10, borderRadius: 8,
                 fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
-                background: fbOk !== null ? 'rgba(50,90,200,0.2)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${fbOk !== null ? 'rgba(99,140,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                color: fbOk !== null ? '#a8c2ff' : 'rgba(140,165,215,0.4)',
+                background: fbOk !== null ? 'var(--blue-bg)' : 'var(--surface)',
+                border: `1px solid ${fbOk !== null ? 'var(--blue-bdr)' : 'var(--surface-border)'}`,
+                color: fbOk !== null ? 'var(--blue)' : 'var(--text-muted)',
                 cursor: fbOk !== null ? 'pointer' : 'not-allowed',
               }}
             >Submit Feedback</button>

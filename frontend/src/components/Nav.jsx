@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
 
 export default function Nav({ user, onLogout }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const isStaff = user && ["teacher", "hod"].includes(user.role);
   const isHod = user && user.role === "hod";
 
-  // The Master Routine is always available to everyone
   const tabs = [
     { to: "/", l: "Master Routine" },
   ];
 
-  // Dynamically push tabs based on authentication and role
   if (user) {
     tabs.push({ to: "/my-routine", l: "My Routine" });
     
@@ -51,11 +51,28 @@ export default function Nav({ user, onLogout }) {
               {t.l}
             </NavLink>
           ))}
+          
+          {/* Theme Toggle Button */}
+          <button 
+            onClick={toggleTheme} 
+            style={{ 
+              background: 'var(--surface)', 
+              border: '1px solid var(--surface-border)', 
+              borderRadius: '8px',
+              padding: '6px 12px',
+              color: 'var(--text)',
+              marginLeft: '8px',
+              transition: 'all 0.2s ease'
+            }}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
 
           <div className="nav-user-area">
             {user ? (
               <>
-                <span className="user-badge" style={{ fontSize: '12px', color: 'rgba(160,185,230,0.8)' }}>
+                <span className="user-badge" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                   {user.roll || user.initials} · <span style={{ textTransform: 'capitalize' }}>{user.role}</span>
                 </span>
                 <button onClick={onLogout} className="sign-out-btn">

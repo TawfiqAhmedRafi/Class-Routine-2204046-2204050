@@ -27,16 +27,16 @@ export default function HodDashboard({ user }) {
     try {
       let res = action === 'approved' ? await approveRequest(id) : await rejectRequest(id, reason);
       if (res.success) { 
-        toast(action === 'approved' ? 'Approved' : 'Rejected', action === 'approved' ? '#30d890' : '#ff7a6a'); 
+        toast(action === 'approved' ? 'Approved' : 'Rejected', action === 'approved' ? 'var(--green)' : 'var(--red)'); 
         loadData(); 
       }
-    } catch (err) { toast('Action failed', '#ff7a6a'); }
+    } catch (err) { toast('Action failed', 'var(--red)'); }
   }
 
   const tabBtnStyle = (k) => ({
     padding: '8px 16px', borderRadius: 8, border: 'none', fontSize: 13, cursor: 'pointer',
-    background: hodTab === k ? 'rgba(60,100,220,0.25)' : 'transparent',
-    color: hodTab === k ? '#a8c2ff' : 'rgba(140,165,215,0.45)', fontWeight: hodTab === k ? 700 : 400
+    background: hodTab === k ? 'var(--blue-bg)' : 'transparent',
+    color: hodTab === k ? 'var(--blue)' : 'var(--text-muted)', fontWeight: hodTab === k ? 700 : 400
   });
 
   return (
@@ -45,7 +45,7 @@ export default function HodDashboard({ user }) {
         <h1 className="grad-text" style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>HOD Control Panel</h1>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 4, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', borderRadius: 10, padding: 4, marginBottom: 24, flexWrap: 'wrap' }}>
         <button style={tabBtnStyle('routine')} onClick={() => setHodTab('routine')}>Manage Routine</button>
         <button style={tabBtnStyle('series')} onClick={() => setHodTab('series')}>Series Settings</button>
         <button style={tabBtnStyle('teachers')} onClick={() => setHodTab('teachers')}>Manage Teachers</button>

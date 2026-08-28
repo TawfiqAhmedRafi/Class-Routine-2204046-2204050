@@ -6,24 +6,19 @@ import { DAYS, TIME_PERIODS, NUM_PERIODS, COLORS } from '../../data/constants';
 import Swal from 'sweetalert2';
 
 const inputSt = {
-  padding: '9px 12px', background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
-  color: '#d0dcf0', fontSize: 13, outline: 'none', width: '100%',
+  padding: '9px 12px', background: 'var(--surface)',
+  border: '1px solid var(--surface-border)', borderRadius: 8,
+  color: 'var(--text)', fontSize: 13, outline: 'none', width: '100%',
   fontFamily: 'Space Grotesk, sans-serif'
 };
 
-// ── Standardized Rooms ────────────────────────────────────────────────────────
 const ROOMS = [
   "301", "302", "303", "304", 
   "Seminar Room", "DSP Lab", "Electronics Lab", 
   "Communication Lab", "Antenna Lab", "Computer Lab"
 ];
 
-// Types that occupy 3 consecutive periods instead of 1
 const SPAN3_TYPES = ['lab', 'project', 'seminar', 'thesis'];
-
-// Types where a room/teacher isn't a real, bookable resource —
-// so we don't force the user to pick one; we hardcode a placeholder instead.
 const NO_RESOURCE_TYPES = ['project', 'seminar', 'thesis'];
 const PLACEHOLDER_ROOM = 'N/A';
 const PLACEHOLDER_TEACHER = 'N/A';
@@ -81,7 +76,7 @@ export default function RoutineBuilder({ configs }) {
       if (res.success) setSlots(res.data);
       if (masterRes.success) setAllMasterSlots(Object.values(masterRes.data).flatMap(d => d.slots || []));
       if (teachersRes.success) setAllTeachers(teachersRes.data);
-    } catch(err) { toast('Failed to load', '#ff7a6a'); }
+    } catch(err) { toast('Failed to load', 'var(--red)'); }
   }
 
   useEffect(() => { load(); }, [series]);
@@ -113,61 +108,61 @@ export default function RoutineBuilder({ configs }) {
 
   async function saveSlot(formData) {
     const conflictError = checkFallbackCollisions(formData);
-    if (conflictError) { toast(conflictError, '#ff7a6a'); return; }
+    if (conflictError) { toast(conflictError, 'var(--red)'); return; }
 
     try {
       if (editorModal.isNew) {
         await createSlot({ ...formData, series: Number(series), semester: selectedCfg.currentSemester });
-        toast('Slot created', '#30d890');
+        toast('Slot created', 'var(--green)');
       } else {
         await updateSlot(editorModal.data._id, formData);
-        toast('Slot updated', '#a8c2ff');
+        toast('Slot updated', 'var(--blue)');
       }
       setEditorModal(null); load();
-    } catch(err) { toast('Save failed', '#ff7a6a'); }
+    } catch(err) { toast('Save failed', 'var(--red)'); }
   }
 
-async function trashSlot(id) {
-  const result = await Swal.fire({
-    title: 'Delete this class?',
-    text: 'This action cannot be undone.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, delete it',
-    cancelButtonText: 'Cancel',
-    confirmButtonColor: '#ff5a45',
-    cancelButtonColor: '#555',
-    background: '#0a0d14',
-    color: '#fff'
-  });
-
-  if (!result.isConfirmed) return;
-
-  try {
-    await deleteSlot(id);
-
-    await Swal.fire({
-      title: 'Deleted!',
-      text: 'The class has been deleted.',
-      icon: 'success',
-      confirmButtonColor: '#638cff',
-      background: '#0a0d14',
-      color: '#fff'
+  async function trashSlot(id) {
+    const result = await Swal.fire({
+      title: 'Delete this class?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: 'var(--red)',
+      cancelButtonColor: 'var(--text-muted)',
+      background: 'var(--nav-bg)',
+      color: 'var(--text)'
     });
 
-    setEditorModal(null);
-    load();
-  } catch (err) {
-    Swal.fire({
-      title: 'Delete failed',
-      text: 'Something went wrong while deleting the class.',
-      icon: 'error',
-      confirmButtonColor: '#ff5a45',
-      background: '#0a0d14',
-      color: '#fff'
-    });
+    if (!result.isConfirmed) return;
+
+    try {
+      await deleteSlot(id);
+
+      await Swal.fire({
+        title: 'Deleted!',
+        text: 'The class has been deleted.',
+        icon: 'success',
+        confirmButtonColor: 'var(--blue)',
+        background: 'var(--nav-bg)',
+        color: 'var(--text)'
+      });
+
+      setEditorModal(null);
+      load();
+    } catch (err) {
+      Swal.fire({
+        title: 'Delete failed',
+        text: 'Something went wrong while deleting the class.',
+        icon: 'error',
+        confirmButtonColor: 'var(--red)',
+        background: 'var(--nav-bg)',
+        color: 'var(--text)'
+      });
+    }
   }
-}
 
   return (
     <div className="glass" style={{ borderRadius: 14, padding: 20 }}>
@@ -192,9 +187,9 @@ async function trashSlot(id) {
             </colgroup>
             <thead>
               <tr>
-                <th style={{ padding: '8px', fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign:'left' }}>DAY</th>
+                <th style={{ padding: '8px', fontSize: 9, color: 'var(--text-muted)', textAlign:'left' }}>DAY</th>
                 {TIME_PERIODS.map(tp => (
-                   <th key={tp.period} style={{ padding: '8px', fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign:'center', borderLeft: '1px solid rgba(255,255,255,0.05)' }}>
+                   <th key={tp.period} style={{ padding: '8px', fontSize: 9, color: 'var(--text-muted)', textAlign:'center', borderLeft: '1px solid var(--surface-border)' }}>
                      {tp.isBreak ? tp.label : `P${tp.period}`}
                    </th>
                 ))}
@@ -204,23 +199,23 @@ async function trashSlot(id) {
               {DAYS.map(day => {
                 const consumed = {};
                 return (
-                  <tr key={day} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding: '8px', fontSize: 10, fontWeight: 700, color: '#a8c2ff' }}>{day.substring(0,3)}</td>
+                  <tr key={day} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                    <td style={{ padding: '8px', fontSize: 10, fontWeight: 700, color: 'var(--blue)' }}>{day.substring(0,3)}</td>
                     {TIME_PERIODS.map(tp => {
-                      if (tp.isBreak) return <td key={tp.period} style={{ background: 'rgba(255,255,255,0.02)', borderLeft: '1px solid rgba(255,255,255,0.05)' }} />;
+                      if (tp.isBreak) return <td key={tp.period} style={{ background: 'var(--surface)', borderLeft: '1px solid var(--surface-border)' }} />;
                       if (consumed[tp.period] || grid[day]?.[tp.period] === 'CONSUMED') return null;
                       const slot = grid[day]?.[tp.period];
                       const colSpan = slot ? slot.periodSpan.length : 1;
                       if (slot) slot.periodSpan.slice(1).forEach(p => consumed[p] = true);
                       return (
-                        <td key={tp.period} colSpan={colSpan} style={{ padding: 4, borderLeft: '1px solid rgba(255,255,255,0.05)', boxSizing: 'border-box' }}>
+                        <td key={tp.period} colSpan={colSpan} style={{ padding: 4, borderLeft: '1px solid var(--surface-border)', boxSizing: 'border-box' }}>
                           {slot ? (
-                            <button onClick={()=>setEditorModal({ isNew: false, data: slot })} style={{ width: '100%', height: 44, boxSizing: 'border-box', borderRadius: 6, border: `1px solid ${COLORS[slot.type]?.border || '#555'}`, background: COLORS[slot.type]?.bg || 'rgba(255,255,255,0.1)', color: COLORS[slot.type]?.text || '#fff', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: '0 6px', cursor: 'pointer', textAlign: 'left' }}>
+                            <button onClick={()=>setEditorModal({ isNew: false, data: slot })} style={{ width: '100%', height: 44, boxSizing: 'border-box', borderRadius: 6, border: `1px solid ${COLORS[slot.type]?.border || 'var(--surface-border)'}`, background: COLORS[slot.type]?.bg || 'var(--surface)', color: COLORS[slot.type]?.text || 'var(--text)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: '0 6px', cursor: 'pointer', textAlign: 'left' }}>
                               <div className="mono" style={{ fontSize: 9, fontWeight: 700 }}>{slot.courseCode}</div>
                               <div style={{ fontSize: 8, opacity: 0.7 }}>{slot.type}</div>
                             </button>
                           ) : (
-                            <button onClick={()=>setEditorModal({ isNew: true, data: { day, startPeriod: tp.period }})} style={{ width: '100%', height: 44, boxSizing: 'border-box', borderRadius: 6, border: '1px dashed rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 18 }}>+</button>
+                            <button onClick={()=>setEditorModal({ isNew: true, data: { day, startPeriod: tp.period }})} style={{ width: '100%', height: 44, boxSizing: 'border-box', borderRadius: 6, border: '1px dashed var(--surface-border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}>+</button>
                           )}
                         </td>
                       );
@@ -269,10 +264,8 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
   const [showCustomTeacher, setShowCustomTeacher] = useState(false);
   const [customTeacherText, setCustomTeacherText] = useState('');
 
-  // Whether room/teacher selection is actually required for this class type
   const requiresResources = !NO_RESOURCE_TYPES.includes(form.type);
 
-  // Auto-enforce duration constraint + hardcode room/teacher when type changes
   useEffect(() => {
     setForm(prev => {
       const nextSpan = SPAN3_TYPES.includes(prev.type) ? 3 : 1;
@@ -286,7 +279,6 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
           teachers: prev.teachers.length ? prev.teachers : [PLACEHOLDER_TEACHER],
         };
       }
-      // Leaving a "no resource" type — clear placeholders so a real pick is required again
       return {
         ...prev,
         periodSpan: nextSpan,
@@ -296,14 +288,13 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
     });
   }, [form.type]);
 
-  // ── Calculate Busy Rooms & Teachers in Real-Time ──
   const { busyRooms, busyTeachers } = useMemo(() => {
     const occupiedRooms = new Set();
     const occupiedTeachers = new Set();
     const requestedPeriods = Array.from({ length: Number(form.periodSpan) }, (_, i) => Number(form.startPeriod) + i);
 
     allMasterSlots.forEach(slot => {
-      if (!isNew && slot._id === init._id) return; // Skip self
+      if (!isNew && slot._id === init._id) return;
       if (slot.day !== form.day) return;
 
       const slotSpan = slot.periodSpan?.length || slot.periodSpan || 1;
@@ -321,31 +312,29 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
     return { busyRooms: occupiedRooms, busyTeachers: occupiedTeachers };
   }, [form.day, form.startPeriod, form.periodSpan, allMasterSlots, init._id, isNew]);
 
-  // Auto-clear room if it becomes occupied during time change (skip for hardcoded placeholder)
   useEffect(() => {
     if (form.room && form.room !== PLACEHOLDER_ROOM && busyRooms.has(form.room)) {
       setForm(prev => ({ ...prev, room: '' }));
-      toast(`Room cleared: ${form.room} is occupied during this time`, '#f0c060');
+      toast(`Room cleared: ${form.room} is occupied during this time`, 'var(--gold)');
     }
   }, [busyRooms, form.room]);
 
-  // Auto-clear teachers if they become occupied during time change (skip placeholder)
   useEffect(() => {
     const newlyOccupied = form.teachers.filter(t => t !== PLACEHOLDER_TEACHER && busyTeachers.has(t));
     if (newlyOccupied.length > 0) {
       setForm(prev => ({ ...prev, teachers: prev.teachers.filter(t => !busyTeachers.has(t)) }));
-      toast(`Removed occupied teachers: ${newlyOccupied.join(', ')}`, '#f0c060');
+      toast(`Removed occupied teachers: ${newlyOccupied.join(', ')}`, 'var(--gold)');
     }
   }, [busyTeachers, form.teachers]);
 
   function handleSubmit(e) {
     e.preventDefault();
     if (requiresResources && !form.room) {
-      toast('Please select an available room', '#ff7a6a');
+      toast('Please select an available room', 'var(--red)');
       return;
     }
     if (requiresResources && form.teachers.length === 0) {
-      toast('Please assign at least one teacher', '#ff7a6a');
+      toast('Please assign at least one teacher', 'var(--red)');
       return;
     }
     const payload = { 
@@ -378,17 +367,17 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e=>e.stopPropagation()} style={{ position: 'relative', width: 440, background: '#0a0d14', border: '1px solid rgba(99,140,255,0.3)', borderRadius: 12, padding: 24 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e=>e.stopPropagation()} style={{ position: 'relative', width: 440, background: 'var(--nav-bg)', border: '1px solid var(--blue-bdr)', borderRadius: 12, padding: 24 }}>
         
         <button 
           onClick={onClose} 
-          style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 28, cursor: 'pointer', lineHeight: 1 }}
+          style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 28, cursor: 'pointer', lineHeight: 1 }}
         >
           &times;
         </button>
 
-        <h3 style={{ margin: '0 0 16px', color: '#fff' }}>{isNew ? 'Add New Class' : 'Edit Class'}</h3>
+        <h3 style={{ margin: '0 0 16px', color: 'var(--text)' }}>{isNew ? 'Add New Class' : 'Edit Class'}</h3>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           
@@ -431,7 +420,7 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
               }))}
             />
           ) : (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', padding: '2px 2px' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 2px' }}>
               Room not required for {form.type} (set to "{PLACEHOLDER_ROOM}")
             </div>
           )}
@@ -446,27 +435,24 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
             ]}
           />
 
-          {/* ── Dynamic Teacher Selection ── */}
           {requiresResources ? (
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ fontSize: 10, color: 'rgba(140,165,215,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Assigned Teachers</div>
+            <div style={{ background: 'var(--surface)', padding: '12px', borderRadius: 8, border: '1px solid var(--surface-border)' }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Assigned Teachers</div>
               
-              {/* Selected Badges */}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, minHeight: 28, alignItems: 'center' }}>
-                {form.teachers.length === 0 && <span style={{ fontSize: 11, color: 'rgba(255,90,69,0.7)' }}>* No teachers selected</span>}
+                {form.teachers.length === 0 && <span style={{ fontSize: 11, color: 'var(--red)' }}>* No teachers selected</span>}
                 {form.teachers.map(t => (
-                  <span key={t} style={{ background: 'rgba(99,140,255,0.15)', border: '1px solid rgba(99,140,255,0.3)', padding: '2px 8px', borderRadius: 6, color: '#a8c2ff', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span key={t} style={{ background: 'var(--blue-bg)', border: '1px solid var(--blue-bdr)', padding: '2px 8px', borderRadius: 6, color: 'var(--blue)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {t}
-                    <button type="button" onClick={() => setForm(prev => ({...prev, teachers: prev.teachers.filter(x => x !== t)}))} style={{ background: 'none', border: 'none', color: '#ff7a6a', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>&times;</button>
+                    <button type="button" onClick={() => setForm(prev => ({...prev, teachers: prev.teachers.filter(x => x !== t)}))} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>&times;</button>
                   </span>
                 ))}
               </div>
 
-              {/* Dropdown / Manual Input Toggle */}
               {!showCustomTeacher ? (
                 <GlassSelect 
                   placeholder="-- Select Teacher to Add --"
-                  value={''} // Always reset so it acts as an action button
+                  value={''}
                   onChange={handleTeacherSelect}
                   options={[
                     ...allTeachers.map(t => {
@@ -491,20 +477,20 @@ function SlotEditorModal({ modal, allMasterSlots, allTeachers, onClose, onSave, 
                     style={{ ...inputSt, textTransform: 'uppercase' }} 
                     autoFocus
                   />
-                  <button type="button" onClick={handleAddCustomTeacher} style={{ padding: '0 16px', borderRadius: 8, background: 'rgba(48,216,144,0.15)', color: '#30d890', border: '1px solid rgba(48,216,144,0.3)', cursor: 'pointer', fontWeight: 600 }}>Add</button>
-                  <button type="button" onClick={() => setShowCustomTeacher(false)} style={{ padding: '0 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', color: '#aaa', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                  <button type="button" onClick={handleAddCustomTeacher} style={{ padding: '0 16px', borderRadius: 8, background: 'var(--green-bg)', color: 'var(--green)', border: '1px solid var(--green-bdr)', cursor: 'pointer', fontWeight: 600 }}>Add</button>
+                  <button type="button" onClick={() => setShowCustomTeacher(false)} style={{ padding: '0 12px', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-muted)', border: 'none', cursor: 'pointer' }}>Cancel</button>
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', padding: '2px 2px' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 2px' }}>
               Teacher not required for {form.type} (set to "{PLACEHOLDER_TEACHER}")
             </div>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            <button type="submit" style={{ flex: 1, padding: 10, background: 'rgba(99,140,255,0.2)', border: '1px solid rgba(99,140,255,0.5)', color: '#a8c2ff', borderRadius: 8, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(99,140,255,0.3)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(99,140,255,0.2)'}>Save</button>
-            {!isNew && <button type="button" onClick={()=>onDelete(init._id)} style={{ padding: '10px 16px', background: 'rgba(255,90,69,0.1)', border: '1px solid rgba(255,90,69,0.4)', color: '#ff7a6a', borderRadius: 8, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,90,69,0.2)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(255,90,69,0.1)'}>Delete</button>}
+            <button type="submit" style={{ flex: 1, padding: 10, background: 'var(--blue-bg)', border: '1px solid var(--blue-bdr)', color: 'var(--blue)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='var(--blue-bg)'} onMouseLeave={e=>e.currentTarget.style.background='var(--blue-bg)'}>Save</button>
+            {!isNew && <button type="button" onClick={()=>onDelete(init._id)} style={{ padding: '10px 16px', background: 'var(--red-bg)', border: '1px solid var(--red-bdr)', color: 'var(--red)', borderRadius: 8, cursor: 'pointer', transition: 'background 0.2s ease' }} onMouseEnter={e=>e.currentTarget.style.background='var(--red-bg)'} onMouseLeave={e=>e.currentTarget.style.background='var(--red-bg)'}>Delete</button>}
           </div>
         </form>
       </div>

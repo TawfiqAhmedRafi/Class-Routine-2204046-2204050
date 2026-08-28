@@ -11,7 +11,6 @@ export default function GlassSelect({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  // Close the dropdown if the user clicks outside of it
   useEffect(() => {
     function handleClickOutside(event) {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -22,7 +21,6 @@ export default function GlassSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Find the label for the currently selected value
   const selectedOption = options.find(o => (o.value ?? o) === value);
   const displayLabel = selectedOption ? (selectedOption.label ?? selectedOption.value ?? selectedOption) : placeholder;
 
@@ -33,10 +31,10 @@ export default function GlassSelect({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         style={{
           padding: '10px 14px',
-          background: error ? 'rgba(220,60,40,0.08)' : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${error ? 'rgba(255,90,69,0.3)' : isOpen ? 'rgba(99,140,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
+          background: error ? 'var(--red-bg)' : 'var(--surface)',
+          border: `1px solid ${error ? 'var(--red-bdr)' : isOpen ? 'var(--blue-bdr)' : 'var(--surface-border)'}`,
           borderRadius: 8,
-          color: value ? '#d0dcf0' : 'rgba(140,165,215,0.5)',
+          color: value ? 'var(--text)' : 'var(--text-muted)',
           fontSize: 13,
           cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex', 
@@ -51,7 +49,7 @@ export default function GlassSelect({
           {displayLabel}
         </span>
         <span style={{ 
-          fontSize: 10, marginLeft: 8, color: 'rgba(140,165,215,0.5)',
+          fontSize: 10, marginLeft: 8, color: 'var(--text-muted)',
           transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
           transition: 'transform 0.2s ease' 
         }}>
@@ -63,14 +61,14 @@ export default function GlassSelect({
       {isOpen && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 6,
-          background: 'rgba(10,14,24,0.95)',
+          background: 'var(--nav-bg)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(99,140,255,0.2)',
+          border: '1px solid var(--surface-border)',
           borderRadius: 8,
           maxHeight: 220, overflowY: 'auto',
           zIndex: 999,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
           display: 'flex', flexDirection: 'column', padding: 4
         }}>
           {options.map((opt, idx) => {
@@ -92,12 +90,12 @@ export default function GlassSelect({
                   borderRadius: 6,
                   fontSize: 13,
                   cursor: isDisabled ? 'not-allowed' : 'pointer',
-                  color: isDisabled ? 'rgba(140,165,215,0.3)' : isSelected ? '#a8c2ff' : '#d0dcf0',
-                  background: isSelected ? 'rgba(99,140,255,0.15)' : 'transparent',
+                  color: isDisabled ? 'var(--text-muted)' : isSelected ? 'var(--blue)' : 'var(--text)',
+                  background: isSelected ? 'var(--blue-bg)' : 'transparent',
                   transition: 'background 0.1s ease',
                   fontFamily: 'Space Grotesk, sans-serif'
                 }}
-                onMouseEnter={e => { if(!isDisabled && !isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseEnter={e => { if(!isDisabled && !isSelected) e.currentTarget.style.background = 'var(--surface)' }}
                 onMouseLeave={e => { if(!isDisabled && !isSelected) e.currentTarget.style.background = 'transparent' }}
               >
                 {optLabel}

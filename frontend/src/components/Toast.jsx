@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 let _setToast = null;
 
-export function toast(msg, color = '#a8c2ff', border = 'rgba(99,140,255,0.4)') {
+// Updated defaults to use variables
+export function toast(msg, color = 'var(--blue)', border = 'var(--blue-bdr)') {
   if (_setToast) _setToast({ msg, color, border, id: Date.now() });
 }
 
@@ -25,10 +26,10 @@ export default function Toast() {
   return (
     <div style={{
       position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-      background: 'rgba(12,15,25,0.96)', border: `1px solid ${state.border}`,
+      background: 'var(--nav-bg)', border: `1px solid ${state.border}`,
       color: state.color, padding: '12px 24px', borderRadius: 10,
       fontSize: 13, fontWeight: 700, backdropFilter: 'blur(16px)',
-      zIndex: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+      zIndex: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
       fontFamily: 'Space Grotesk, sans-serif', whiteSpace: 'nowrap',
       animation: 'fadeUp 0.25s ease forwards',
     }}>

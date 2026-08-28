@@ -4,12 +4,12 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('app_theme') || 'dark';
+    return localStorage.getItem('ete_theme') || 'dark';
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('app_theme', theme);
+    localStorage.setItem('ete_theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {

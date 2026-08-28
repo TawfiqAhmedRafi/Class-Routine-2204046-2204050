@@ -6,7 +6,6 @@ import SlotModal from '../components/SlotModal';
 import GlassSelect from '../components/GlassSelect';
 import { toast } from '../components/Toast';
 
-// ── Grid builder (identical convention to RoutineView/MasterRoutine) ───────
 function buildGrid(slots) {
   const grid = {};
   DAYS.forEach(d => {
@@ -38,7 +37,7 @@ function Skeleton() {
       {[...Array(5)].map((_, i) => (
         <div key={i} style={{
           height: 72, borderRadius: 10,
-          background: 'rgba(255,255,255,0.03)',
+          background: 'var(--surface)',
           animation: 'shimmer 1.5s ease infinite',
           animationDelay: `${i * 0.1}s`,
         }} />
@@ -47,28 +46,7 @@ function Skeleton() {
   );
 }
 
-// Compact abbreviation for the INTERACTIVE dark-mode grid only (used by SlotCard
-// elsewhere). The printed PDF uses the raw room text — see printRoomLine() below —
-// to match the office routine, which never abbreviates rooms.
-function formatRoom(rawRoom) {
-  if (!rawRoom) return '';
-  const lower = rawRoom.toLowerCase();
-  if (lower.includes('seminar')) return 'Seminar';
-  if (lower.includes('computer')) return 'CmL';
-  if (lower.includes('lab')) {
-    const words = rawRoom.split(/[\s-]+/).filter(Boolean);
-    return words.length >= 2
-      ? (words[0][0] + words[1][0]).toUpperCase()
-      : rawRoom.substring(0, 2).toUpperCase();
-  }
-  const match = rawRoom.match(/^(?:R|Room)?\s*(\d+[A-Z]?)/i);
-  return match ? match[1] : rawRoom;
-}
-
-// ── PDF Generator — matches MasterRoutine's plain black-and-white print format ──
-// Same rules as the master routine: no color anywhere, thin black rules only, and
-// every occupied cell is 3 centered lines: Room (raw, un-abbreviated) → Course code
-// → Series (since the teacher is already fixed, the series is what varies here).
+// ... generateTeacherPrintHtml function remains completely unchanged here for print styling ...
 function generateTeacherPrintHtml(teacher, slots) {
   const grid = buildGrid(slots);
 
@@ -95,8 +73,6 @@ function generateTeacherPrintHtml(teacher, slots) {
 
   const fmt = v => (v === null || v === undefined) ? '' : String(v).trim();
 
-  // Raw room text, un-abbreviated — falls back to course title / code when a slot
-  // has no plain room (e.g. project entries), same convention as MasterRoutine.
   function printRoomLine(slot) {
     const room = fmt(slot.room?.roomLabel || slot.room || '');
     if (room) return room;
@@ -169,7 +145,6 @@ function generateTeacherPrintHtml(teacher, slots) {
 </head>
 <body>
 
-<!-- Header -->
 <div style="text-align:center;margin-bottom:6px;line-height:1.5;">
   <div style="font-size:8px;font-style:italic;color:#000;">Heaven's Light is Our Guide</div>
   <div style="font-size:9px;font-weight:700;color:#000;">Rajshahi University of Engineering &amp; Technology</div>
@@ -178,7 +153,6 @@ function generateTeacherPrintHtml(teacher, slots) {
   <div style="font-size:8px;color:#000;">Effective from ${today}</div>
 </div>
 
-<!-- Main layout: table + right panel, separated by a real gap -->
 <div style="display:flex;gap:${PANEL_GAP}px;align-items:flex-start;">
   <div style="flex:1;min-width:0;">
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
@@ -208,7 +182,6 @@ function generateTeacherPrintHtml(teacher, slots) {
   </div>
 </div>
 
-<!-- Footer -->
 <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:flex-end;">
   <div style="font-size:12px;color:#000;line-height:1.6;">
     <strong>Note: Please follow this routine strictly</strong><br/>
@@ -224,7 +197,6 @@ function generateTeacherPrintHtml(teacher, slots) {
 </html>`;
 }
 
-// ── Main Page ────────────────────────────────────────────────────────────
 export default function TeacherRoutine({ user }) {
   const [selectedInitials, setSelectedInitials] = useState(["teacher", "hod"].includes(user?.role) ? user.initials : "");
   const [allSlots, setAllSlots] = useState([]);
@@ -248,9 +220,9 @@ export default function TeacherRoutine({ user }) {
           }
         }
       })
-      .catch(() => toast('Failed to load data', '#ff7a6a'))
+      .catch(() => toast('Failed to load data', 'var(--red)'))
       .finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); 
 
   const teacherSlots = useMemo(() => {
     if (!selectedInitials) return [];
@@ -326,10 +298,10 @@ export default function TeacherRoutine({ user }) {
       pdf.addImage(imgData, 'JPEG', 0, 0, PAGE_W, PAGE_H, '', 'FAST');
 
       pdf.save(`ETE_${selectedInitials}_Routine_${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast('PDF downloaded!', '#7fffd4', 'rgba(20,180,120,0.3)');
+      toast('PDF downloaded!', 'var(--green)', 'var(--green-bdr)');
     } catch (e) {
       console.error(e);
-      toast('Failed to generate PDF — ' + e.message, '#ff7a6a', 'rgba(255,90,69,0.35)');
+      toast('Failed to generate PDF — ' + e.message, 'var(--red)', 'var(--red-bdr)');
     } finally {
       setPrinting(false);
     }
@@ -341,12 +313,12 @@ export default function TeacherRoutine({ user }) {
       if (tp.isBreak) {
         return (
           <td key={tp.period} style={{
-            background: 'rgba(255,200,80,0.025)',
-            borderLeft: '1px solid rgba(255,255,255,0.04)',
+            background: 'var(--gold-bg)',
+            borderLeft: '1px solid var(--surface-border)',
             textAlign: 'center', padding: '4px 2px',
           }}>
             <span style={{
-              fontSize: 8, color: 'rgba(255,200,80,0.3)',
+              fontSize: 8, color: 'var(--gold)',
               letterSpacing: '0.04em', textTransform: 'uppercase',
               writingMode: 'vertical-rl',
             }}>{tp.label}</span>
@@ -364,17 +336,17 @@ export default function TeacherRoutine({ user }) {
       return (
         <td key={tp.period} colSpan={colSpan} style={{
           padding: 5, 
-          borderLeft: '1px solid rgba(255,255,255,0.04)',
-          height: '1px' // <-- TRICK: Forces the td to pass its calculated height to its children
+          borderLeft: '1px solid var(--surface-border)',
+          height: '1px' 
         }}>
           {slot
             ? <SlotCard slot={slot} onClick={setModal} />
             : <div style={{
-                height: '100%',    // <-- Stretches to fill the td
-                minHeight: 70,     // <-- Matches the minimum height of a standard SlotCard
+                height: '100%',
+                minHeight: 70, 
                 borderRadius: 8,
-                background: 'rgba(255,255,255,0.012)',
-                border: '1px dashed rgba(255,255,255,0.05)',
+                background: 'var(--surface)',
+                border: '1px dashed var(--surface-border)',
               }} />
           }
         </td>
@@ -387,19 +359,19 @@ export default function TeacherRoutine({ user }) {
       padding: tp.isBreak ? '8px 4px' : '14px 6px',
       textAlign: 'center',
       fontSize: tp.isBreak ? 8 : 10,
-      color: tp.isBreak ? 'rgba(255,200,80,0.5)' : 'rgba(140,165,215,0.6)',
+      color: tp.isBreak ? 'var(--gold)' : 'var(--text-muted)',
       fontWeight: 600,
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
-      background: tp.isBreak ? 'rgba(255,200,80,0.03)' : 'rgba(255,255,255,0.02)',
+      borderBottom: '1px solid var(--surface-border)',
+      background: tp.isBreak ? 'var(--gold-bg)' : 'var(--surface)',
       minWidth: tp.isBreak ? 44 : 98,
-      borderLeft: '1px solid rgba(255,255,255,0.04)',
+      borderLeft: '1px solid var(--surface-border)',
     }}>
       {tp.isBreak
         ? <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tp.label}</span>
         : <>
-            <div className="mono" style={{ fontSize: 13, color: 'rgba(160,185,230,0.8)', marginBottom: 1 }}>P{tp.period}</div>
-            <div style={{ fontSize: 9, color: 'rgba(110,135,190,0.5)' }}>{tp.start}</div>
-            <div style={{ fontSize: 9, color: 'rgba(110,135,190,0.35)' }}>{tp.end}</div>
+            <div className="mono" style={{ fontSize: 13, color: 'var(--text)', marginBottom: 1 }}>P{tp.period}</div>
+            <div style={{ fontSize: 9, opacity: 0.6 }}>{tp.start}</div>
+            <div style={{ fontSize: 9, opacity: 0.4 }}>{tp.end}</div>
           </>
       }
     </th>
@@ -408,11 +380,10 @@ export default function TeacherRoutine({ user }) {
   return (
     <div style={{ position: 'relative', zIndex: 1, padding: '24px 20px' }} className="fade-up">
 
-      {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div className="mono" style={{
           fontSize: 10, letterSpacing: '0.2em',
-          color: 'rgba(99,140,255,0.65)', textTransform: 'uppercase', marginBottom: 6,
+          color: 'var(--blue-muted)', textTransform: 'uppercase', marginBottom: 6,
         }}>
           Rajshahi University of Engineering &amp; Technology
         </div>
@@ -422,15 +393,14 @@ export default function TeacherRoutine({ user }) {
         }}>
           Individual Routine
         </h1>
-        <p style={{ color: 'rgba(140,165,215,0.5)', fontSize: 13, margin: '4px 0 0' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '4px 0 0' }}>
           {activeTeacher.name} ({teacherSlots.length} Total Classes)
         </p>
       </div>
 
-      {/* Controls */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20, alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Teacher</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Teacher</span>
           <div style={{ width: 260 }}>
             <GlassSelect
               value={selectedInitials}
@@ -444,7 +414,6 @@ export default function TeacherRoutine({ user }) {
           </div>
         </div>
 
-        {/* PDF Download Button — matches RoutineView styling */}
         <button
           onClick={handlePrint}
           disabled={printing || loading}
@@ -452,17 +421,13 @@ export default function TeacherRoutine({ user }) {
             marginLeft: 'auto',
             display: 'flex', alignItems: 'center', gap: 7,
             padding: '7px 16px', borderRadius: 9, cursor: printing || loading ? 'not-allowed' : 'pointer',
-            border: '1px solid rgba(99,140,255,0.35)',
-            background: printing || loading
-              ? 'rgba(99,140,255,0.06)'
-              : 'linear-gradient(135deg, rgba(99,140,255,0.25) 0%, rgba(99,140,255,0.15) 100%)',
-            color: printing || loading ? 'rgba(150,170,210,0.4)' : '#a8c2ff',
+            border: '1px solid var(--blue-bdr)',
+            background: printing || loading ? 'var(--surface)' : 'var(--blue-bg)',
+            color: printing || loading ? 'var(--text-muted)' : 'var(--blue)',
             fontSize: 12, fontWeight: 600,
-            boxShadow: printing || loading ? 'none' : '0 0 14px rgba(99,140,255,0.15)',
+            boxShadow: printing || loading ? 'none' : '0 0 14px var(--surface-border)',
             transition: 'all 0.15s',
           }}
-          onMouseEnter={e => { if (!printing && !loading) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,140,255,0.38) 0%, rgba(99,140,255,0.25) 100%)'; }}
-          onMouseLeave={e => { if (!printing && !loading) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,140,255,0.25) 0%, rgba(99,140,255,0.15) 100%)'; }}
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.2"/>
@@ -472,22 +437,20 @@ export default function TeacherRoutine({ user }) {
         </button>
       </div>
 
-      {/* Legend */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
         {Object.entries(COLORS).map(([type, c]) => (
           <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 10, height: 10, borderRadius: 2, background: c.badge, opacity: 0.85 }} />
-            <span style={{ fontSize: 11, color: 'rgba(150,170,210,0.65)', textTransform: 'capitalize' }}>{type}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{type}</span>
           </div>
         ))}
       </div>
 
-      {/* Table Area — identical structure/spacing to RoutineView */}
       {loading ? <Skeleton /> : (
         <div style={{
           overflowX: 'auto', borderRadius: 14,
-          border: '1px solid rgba(255,255,255,0.06)',
-          background: 'rgba(255,255,255,0.012)',
+          border: '1px solid var(--surface-border)',
+          background: 'var(--surface)',
           backdropFilter: 'blur(20px)',
           minHeight: 400
         }}>
@@ -497,21 +460,21 @@ export default function TeacherRoutine({ user }) {
                 <th style={{
                   padding: '14px 16px', textAlign: 'left',
                   fontSize: 10, letterSpacing: '0.12em',
-                  color: 'rgba(140,165,215,0.45)', textTransform: 'uppercase',
-                  fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.06)',
-                  background: 'rgba(255,255,255,0.02)', width: 72,
+                  color: 'var(--text-muted)', textTransform: 'uppercase',
+                  fontWeight: 600, borderBottom: '1px solid var(--surface-border)',
+                  background: 'var(--surface)', width: 72,
                 }}>Day</th>
                 {thCells}
               </tr>
             </thead>
             <tbody>
               {DAYS.map(day => (
-                <tr key={day} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <tr key={day} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                   <td style={{
                     padding: '10px 16px', fontSize: 12, fontWeight: 700,
-                    color: 'rgba(160,185,230,0.8)',
-                    background: 'rgba(255,255,255,0.015)',
-                    borderRight: '1px solid rgba(255,255,255,0.06)',
+                    color: 'var(--text)',
+                    background: 'var(--surface)',
+                    borderRight: '1px solid var(--surface-border)',
                     whiteSpace: 'nowrap',
                     fontFamily: 'JetBrains Mono, monospace',
                     letterSpacing: '0.04em',

@@ -5,9 +5,9 @@ import { toast } from '../Toast';
 import GlassSelect from '../GlassSelect';
 
 const inputSt = {
-  padding: '9px 12px', background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
-  color: '#d0dcf0', fontSize: 12, outline: 'none', width: '100%',
+  padding: '9px 12px', background: 'var(--surface)',
+  border: '1px solid var(--surface-border)', borderRadius: 8,
+  color: 'var(--text)', fontSize: 12, outline: 'none', width: '100%',
   boxSizing: 'border-box'
 };
 
@@ -21,24 +21,24 @@ export default function SeriesManager({ configs, reload }) {
 
   async function handleAdd() {
     const s = parseInt(newSeries);
-    if (!s || s < 10 || s > 30) { toast('Enter a valid 2-digit series', '#ff7a6a'); return; }
+    if (!s || s < 10 || s > 30) { toast('Enter a valid 2-digit series', 'var(--red)'); return; }
     setBusy(true);
     try {
       const res = await addSeries(s, newSem, newLabel || `${s} Series`);
-      if (res.success) { toast(`Series ${s} added`, '#30d890'); setNewSeries(''); setNewLabel(''); reload(); }
-    } catch (err) { toast('Failed to add series', '#ff7a6a'); } finally { setBusy(false); }
+      if (res.success) { toast(`Series ${s} added`, 'var(--green)'); setNewSeries(''); setNewLabel(''); reload(); }
+    } catch (err) { toast('Failed to add series', 'var(--red)'); } finally { setBusy(false); }
   }
 
   async function handleDelete(s) {
     const result = await Swal.fire({
       title: `Graduate Series ${s}?`,
       text: "This will hide the series from the active routine.",
-      icon: 'warning', showCancelButton: true, confirmButtonColor: '#ff7a6a', cancelButtonColor: '#555',
-      background: '#0a0d14', color: '#e2eaff'
+      icon: 'warning', showCancelButton: true, confirmButtonColor: 'var(--red)', cancelButtonColor: 'var(--text-muted)',
+      background: 'var(--nav-bg)', color: 'var(--text)'
     });
     if (result.isConfirmed) {
-      try { await deleteSeries(s); toast(`Series ${s} graduated`, '#f0c060'); reload(); }
-      catch (err) { toast('Failed', '#ff7a6a'); }
+      try { await deleteSeries(s); toast(`Series ${s} graduated`, 'var(--gold)'); reload(); }
+      catch (err) { toast('Failed', 'var(--red)'); }
     }
   }
 
@@ -46,12 +46,12 @@ export default function SeriesManager({ configs, reload }) {
     const result = await Swal.fire({
       title: `Change to ${sem} semester?`,
       text: `Are you sure you want to shift Series ${s} to the ${sem} semester?`,
-      icon: 'question', showCancelButton: true, confirmButtonColor: '#30d890', cancelButtonColor: '#555',
-      background: '#0a0d14', color: '#e2eaff'
+      icon: 'question', showCancelButton: true, confirmButtonColor: 'var(--green)', cancelButtonColor: 'var(--text-muted)',
+      background: 'var(--nav-bg)', color: 'var(--text)'
     });
     if (result.isConfirmed) {
-      try { await updateSeriesSemester(s, sem); toast(`Series ${s} updated`, '#a8c2ff'); reload(); }
-      catch (err) { toast('Failed', '#ff7a6a'); }
+      try { await updateSeriesSemester(s, sem); toast(`Series ${s} updated`, 'var(--blue)'); reload(); }
+      catch (err) { toast('Failed', 'var(--red)'); }
     }
   }
 
@@ -59,12 +59,12 @@ export default function SeriesManager({ configs, reload }) {
     const result = await Swal.fire({
       title: `Save Label Change?`,
       text: `Update label to "${editLabelText}"?`,
-      icon: 'question', showCancelButton: true, confirmButtonColor: '#30d890', cancelButtonColor: '#555',
-      background: '#0a0d14', color: '#e2eaff'
+      icon: 'question', showCancelButton: true, confirmButtonColor: 'var(--green)', cancelButtonColor: 'var(--text-muted)',
+      background: 'var(--nav-bg)', color: 'var(--text)'
     });
     if (result.isConfirmed) {
-      try { await editSeriesLabel(s, editLabelText); toast('Label updated', '#30d890'); setEditingId(null); reload(); }
-      catch(err) { toast('Failed', '#ff7a6a'); }
+      try { await editSeriesLabel(s, editLabelText); toast('Label updated', 'var(--green)'); setEditingId(null); reload(); }
+      catch(err) { toast('Failed', 'var(--red)'); }
     } else { setEditingId(null); }
   }
 
@@ -79,15 +79,15 @@ export default function SeriesManager({ configs, reload }) {
           gap: 12px;
           padding: 12px 16px;
           margin-bottom: 8px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 10px;
           flex-wrap: wrap;
         }
         .series-num {
           font-size: clamp(16px, 4vw, 22px);
           font-weight: 700;
-          color: #a8c2ff;
+          color: var(--blue);
           width: 32px;
           flex-shrink: 0;
         }
@@ -99,14 +99,14 @@ export default function SeriesManager({ configs, reload }) {
         }
         .series-label-text {
           font-size: 13px;
-          color: #c0d0e8;
+          color: var(--text);
           font-weight: 600;
           word-break: break-word;
         }
         .edit-btn {
           background: none;
           border: none;
-          color: rgba(140,165,215,0.5);
+          color: var(--text-muted);
           cursor: pointer;
           font-size: 11px;
           white-space: nowrap;
@@ -128,14 +128,14 @@ export default function SeriesManager({ configs, reload }) {
           cursor: pointer;
           white-space: nowrap;
         }
-        .save-btn { background: rgba(48,216,144,0.15); color: #30d890; }
-        .cancel-btn { background: rgba(255,255,255,0.05); color: #aaa; }
+        .save-btn { background: var(--green-bg); color: var(--green); }
+        .cancel-btn { background: var(--surface); color: var(--text-muted); }
 
         .sem-toggle {
           display: flex;
           gap: 2px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 8px;
           padding: 2px;
           flex-shrink: 0;
@@ -152,9 +152,9 @@ export default function SeriesManager({ configs, reload }) {
         .graduate-btn {
           padding: 6px 12px;
           border-radius: 7px;
-          border: 1px solid rgba(255,90,69,0.25);
-          background: rgba(220,60,40,0.08);
-          color: #ff8070;
+          border: 1px solid var(--red-bdr);
+          background: var(--red-bg);
+          color: var(--red);
           font-size: 11px;
           cursor: pointer;
           white-space: nowrap;
@@ -163,8 +163,8 @@ export default function SeriesManager({ configs, reload }) {
 
         .add-panel {
           padding: 16px;
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.06);
+          background: var(--surface);
+          border: 1px solid var(--surface-border);
           border-radius: 10px;
           margin-top: 16px;
         }
@@ -182,58 +182,26 @@ export default function SeriesManager({ configs, reload }) {
           font-size: 12px;
           font-weight: 700;
           cursor: pointer;
-          border: 1px solid rgba(48,216,144,0.4);
-          background: rgba(20,180,120,0.14);
-          color: #30d890;
+          border: 1px solid var(--green-bdr);
+          background: var(--green-bg);
+          color: var(--green);
           flex-shrink: 0;
         }
 
-        /* Tablet and below: let the label row take full width so the
-           semester toggle & graduate button wrap onto their own line
-           instead of squeezing the label. */
         @media (max-width: 640px) {
-          .series-card {
-            align-items: flex-start;
-          }
-          .series-label-wrap {
-            flex: 1 1 100%;
-            order: 1;
-          }
-          .sem-toggle {
-            order: 2;
-          }
-          .graduate-btn {
-            order: 3;
-          }
+          .series-card { align-items: flex-start; }
+          .series-label-wrap { flex: 1 1 100%; order: 1; }
+          .sem-toggle { order: 2; }
+          .graduate-btn { order: 3; }
         }
 
-        /* Small phones: stack every control full-width, add form goes vertical */
         @media (max-width: 420px) {
-          .series-card {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .series-num {
-            width: auto;
-          }
-          .sem-toggle, .graduate-btn {
-            width: 100%;
-            justify-content: center;
-          }
-          .sem-toggle {
-            display: flex;
-          }
-          .sem-btn {
-            flex: 1;
-            text-align: center;
-          }
-          .add-form .f-year,
-          .add-form .f-label,
-          .add-form .f-sem,
-          .add-form .f-btn {
-            width: 100%;
-            flex: 1 1 100%;
-          }
+          .series-card { flex-direction: column; align-items: stretch; }
+          .series-num { width: auto; }
+          .sem-toggle, .graduate-btn { width: 100%; justify-content: center; }
+          .sem-toggle { display: flex; }
+          .sem-btn { flex: 1; text-align: center; }
+          .add-form .f-year, .add-form .f-label, .add-form .f-sem, .add-form .f-btn { width: 100%; flex: 1 1 100%; }
         }
       `}</style>
 
@@ -271,8 +239,8 @@ export default function SeriesManager({ configs, reload }) {
                 className="sem-btn"
                 onClick={() => handleSemUpdate(cfg.series, s)}
                 style={{
-                  background: cfg.currentSemester === s ? 'rgba(60,100,220,0.28)' : 'transparent',
-                  color: cfg.currentSemester === s ? '#a8c2ff' : 'rgba(140,165,215,0.35)',
+                  background: cfg.currentSemester === s ? 'var(--blue-bg)' : 'transparent',
+                  color: cfg.currentSemester === s ? 'var(--blue)' : 'var(--text-muted)',
                   fontWeight: cfg.currentSemester === s ? 700 : 400,
                 }}
               >{s}</button>

@@ -29,45 +29,51 @@ export const NUM_PERIODS = TIME_PERIODS.filter((t) => !t.isBreak).map(
 );
 
 // ─── Slot type colour tokens ────────────────────────────────────────────────
+// ... existing imports/constants ...
+
+// ─── Slot type colour tokens ────────────────────────────────────────────────
+// Refactored to use CSS variables for Light/Dark mode support
 export const COLORS = {
   theory: {
-    bg: "rgba(56,103,214,0.16)",
-    border: "rgba(99,140,255,0.4)",
-    badge: "#3f6dff",
-    text: "#a8c2ff",
+    bg: "var(--blue-bg)",
+    border: "var(--blue-bdr)",
+    badge: "var(--blue)",
+    text: "var(--text)",
   },
   lab: {
-    bg: "rgba(20,180,120,0.13)",
-    border: "rgba(40,210,140,0.38)",
-    badge: "#18c980",
-    text: "#7fffd4",
+    bg: "var(--green-bg)",
+    border: "var(--green-bdr)",
+    badge: "var(--green)",
+    text: "var(--text)",
   },
   assessment: {
-    bg: "rgba(220,80,60,0.16)",
-    border: "rgba(255,110,90,0.4)",
-    badge: "#ff5a45",
-    text: "#ffb0a8",
-  },
-  seminar: {
-    bg: "rgba(160,80,220,0.16)",
-    border: "rgba(200,120,255,0.38)",
-    badge: "#b060f0",
-    text: "#ddb8ff",
+    bg: "var(--red-bg)",
+    border: "var(--red-bdr)",
+    badge: "var(--red)",
+    text: "var(--text)",
   },
   project: {
-    bg: "rgba(240,160,30,0.14)",
-    border: "rgba(255,190,60,0.38)",
-    badge: "#f0a020",
-    text: "#ffd580",
+    bg: "var(--gold-bg)",
+    border: "var(--gold-bdr)",
+    badge: "var(--gold)",
+    text: "var(--text)",
+  },
+  // Mapping seminar and thesis to existing theme variables to keep it clean
+  seminar: {
+    bg: "var(--blue-bg)",
+    border: "var(--blue-bdr)",
+    badge: "var(--blue)",
+    text: "var(--text)",
   },
   thesis: {
-    bg: "rgba(255,120,150,0.15)",
-    border: "rgba(255,120,150,0.4)",
-    badge: "#ff6a80",
-    text: "#ff9ab0",
+    bg: "var(--red-bg)",
+    border: "var(--red-bdr)",
+    badge: "var(--red)",
+    text: "var(--text)",
   },
 };
 
+// ... rest of constants.js remains unchanged ...
 // ─── Series configs ─────────────────────────────────────────────────────────
 export const INITIAL_SERIES_CONFIGS = [
   {
