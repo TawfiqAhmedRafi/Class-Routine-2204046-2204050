@@ -319,7 +319,8 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
   // ── Layout constants (px, at the 1344px-wide capture container used below) ──
   const LABEL_COL   = 72;   // "Day →" / series-label column
   const PERIOD_COL  = 45;   // each of the 9 period columns
-  const PANEL_W     = 9 * PERIOD_COL; // right panel = width of one day-block (405px)
+  const PANEL_GAP   = 16;   // visible gap between the routine table and the side panel
+  const PANEL_W     = 9 * PERIOD_COL - PANEL_GAP; // side panel width, gap-adjusted so the right edge still lines up with the top table
   const ROW_H       = 42;   // data row height (fits 3 stacked lines)
   const HEAD1_H     = 18;   // "Day →" / day-name row
   const HEAD2_H     = 16;   // "→Period" / period-number row
@@ -403,28 +404,30 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
   }
 
   // ── Right-side panel: P&LB note + Teachers of ETE + Period & Time Schedule ──
+  // Stretched out with generous row height/padding and a clear gap both from the
+  // routine table (PANEL_GAP, applied by the caller) and between the two mini-tables.
   function buildRightPanel() {
     const teacherRows = TEACHERS.map(t => `<tr>
-      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${t.init}</td>
-      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${t.name}</td>
+      <td style="border:${BORDER};font-size:8px;padding:4px 6px;white-space:nowrap;color:#000;">${t.init}</td>
+      <td style="border:${BORDER};font-size:8px;padding:4px 6px;white-space:nowrap;color:#000;">${t.name}</td>
     </tr>`).join('');
 
     const timeRows = TIME_SCHED.map(r => `<tr>
-      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${r.period}</td>
-      <td style="border:${BORDER};font-size:6.5px;padding:1px 3px;white-space:nowrap;color:#000;">${r.time}</td>
+      <td style="border:${BORDER};font-size:8px;padding:4px 6px;white-space:nowrap;color:#000;">${r.period}</td>
+      <td style="border:${BORDER};font-size:8px;padding:4px 6px;white-space:nowrap;color:#000;">${r.time}</td>
     </tr>`).join('');
 
     return `<div style="width:${PANEL_W}px;flex-shrink:0;display:flex;flex-direction:column;">
-      <div style="text-align:right;font-size:7px;color:#000;padding:0 2px 3px;">P&amp;LB = Prayer &amp; Lunch Break</div>
-      <div style="display:flex;gap:6px;">
+      <div style="text-align:right;font-size:7.5px;color:#000;padding:0 2px 5px;">P&amp;LB = Prayer &amp; Lunch Break</div>
+      <div style="display:flex;gap:14px;">
         <table style="border-collapse:collapse;flex:1;">
-          <tr><th colspan="2" style="border:${BORDER};font-size:7.5px;font-weight:700;padding:2px;color:#000;">Teachers of ETE</th></tr>
+          <tr><th colspan="2" style="border:${BORDER};font-size:8.5px;font-weight:700;padding:4px;color:#000;">Teachers of ETE</th></tr>
           ${teacherRows}
         </table>
         <table style="border-collapse:collapse;flex:1;">
           <tr>
-            <th style="border:${BORDER};font-size:7px;font-weight:700;padding:2px;color:#000;">Period</th>
-            <th style="border:${BORDER};font-size:7px;font-weight:700;padding:2px;color:#000;">Time Schedule</th>
+            <th style="border:${BORDER};font-size:8px;font-weight:700;padding:4px;color:#000;">Period</th>
+            <th style="border:${BORDER};font-size:8px;font-weight:700;padding:4px;color:#000;">Time Schedule</th>
           </tr>
           ${timeRows}
         </table>
@@ -477,7 +480,7 @@ function generatePrintHtml(seriesConfigs, allData, teachersList) {
 </div>
 
 <!-- ── BOTTOM: Tuesday | Wednesday  +  right panel ── -->
-<div style="display:flex;align-items:flex-start;gap:0;">
+<div style="display:flex;align-items:flex-start;gap:${PANEL_GAP}px;">
   ${buildDayBlockTable(BOTTOM_DAYS)}
   ${buildRightPanel()}
 </div>
