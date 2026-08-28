@@ -37,7 +37,7 @@ function Skeleton() {
       {[...Array(5)].map((_, i) => (
         <div key={i} style={{
           height: 72, borderRadius: 10,
-          background: 'rgba(255,255,255,0.03)',
+          background: 'var(--surface)',
           animation: 'shimmer 1.5s ease infinite',
           animationDelay: `${i * 0.1}s`,
         }} />
@@ -46,9 +46,6 @@ function Skeleton() {
   );
 }
 
-// Compact abbreviation for the INTERACTIVE dark-mode grid only (used by SlotCard
-// elsewhere). The printed PDF uses the raw room text — see printRoomLine() below —
-// to match the office routine, which never abbreviates rooms.
 function formatRoom(rawRoom) {
   if (!rawRoom) return '';
   const lower = rawRoom.toLowerCase();
@@ -64,10 +61,6 @@ function formatRoom(rawRoom) {
   return match ? match[1] : rawRoom;
 }
 
-// ── Series-wise PDF HTML generator — matches MasterRoutine's plain
-// black-and-white print format: no color anywhere, thin black rules only, and
-// every occupied cell is 3 centered lines: Room (raw, un-abbreviated) → Course
-// code → Teacher initials.
 function generateSeriesPrintHtml(seriesLabel, semesterLabel, slots) {
   const grid = buildGrid(slots);
 
@@ -94,8 +87,6 @@ function generateSeriesPrintHtml(seriesLabel, semesterLabel, slots) {
 
   const fmt = v => (v === null || v === undefined) ? '' : String(v).trim();
 
-  // Raw room text, un-abbreviated — falls back to course title / code when a slot
-  // has no plain room (e.g. project entries), same convention as MasterRoutine.
   function printRoomLine(slot) {
     const room = fmt(slot.room?.roomLabel || slot.room || '');
     if (room) return room;
@@ -229,14 +220,12 @@ export default function RoutineView({ user }) {
   const [slots, setSlots] = useState([]);
   const [modal, setModal] = useState(null);
 
-  // 1. THE ENGINE: This single object controls all API fetches
   const [params, setParams] = useState({
     series: user.series || 22,
     batch: user.batch || 'all',
-    sem: '' // Blank means "Backend, automatically give me the active semester!"
+    sem: '' 
   });
 
-  // 2. THE PAINT: This only controls which button is highlighted (never triggers a fetch)
   const [displaySem, setDisplaySem] = useState('');
 
   const [initialLoad, setInitialLoad] = useState(true);
@@ -306,23 +295,21 @@ export default function RoutineView({ user }) {
       const semPart = displaySem ? `_${displaySem.charAt(0).toUpperCase() + displaySem.slice(1)}` : '';
       const fname = `ETE_${params.series}_Series${semPart}_Routine_${new Date().toISOString().slice(0, 10)}.pdf`;
       pdf.save(fname);
-      toast('PDF downloaded!', '#7fffd4', 'rgba(20,180,120,0.3)');
+      toast('PDF downloaded!', 'var(--green)', 'var(--green-bdr)');
     } catch (e) {
       console.error(e);
-      toast('Failed to generate PDF — ' + e.message, '#ff7a6a', 'rgba(255,90,69,0.35)');
+      toast('Failed to generate PDF — ' + e.message, 'var(--red)', 'var(--red-bdr)');
     } finally {
       setPrinting(false);
     }
   }
 
-  // Fetch configs ONLY ONCE on mount
   useEffect(() => {
     fetchSeries().then(res => {
       if (res.success) setSeriesConfigs(res.data);
     }).catch(() => {});
   }, []);
 
-  // Fetch routine whenever params change (and ONLY when params change)
   useEffect(() => {
     const loadingTimer = setTimeout(() => setIsFetching(true), 150);
     setError(null);
@@ -331,12 +318,12 @@ export default function RoutineView({ user }) {
       .then(res => {
         if (res.success) {
           setSlots(res.data);
-          setDisplaySem(res.semester); // Updates the UI buttons without causing a double-render!
+          setDisplaySem(res.semester); 
         }
       })
       .catch(err => {
         setError(err?.response?.data?.message || 'Failed to load routine');
-        toast('Failed to load routine', '#ff7a6a', 'rgba(255,90,69,0.35)');
+        toast('Failed to load routine', 'var(--red)', 'var(--red-bdr)');
       })
       .finally(() => {
         clearTimeout(loadingTimer);
@@ -347,7 +334,6 @@ export default function RoutineView({ user }) {
     return () => clearTimeout(loadingTimer);
   }, [params.series, params.batch, params.sem]);
 
-  // When switching series, we reset the semester to blank so the backend auto-detects the correct one
   function handleSeriesChange(s) {
     setParams(prev => ({ ...prev, series: s, sem: '' }));
   }
@@ -361,12 +347,12 @@ export default function RoutineView({ user }) {
       if (tp.isBreak) {
         return (
           <td key={tp.period} style={{
-            background: 'rgba(255,200,80,0.025)',
-            borderLeft: '1px solid rgba(255,255,255,0.04)',
+            background: 'var(--gold-bg)',
+            borderLeft: '1px solid var(--surface-border)',
             textAlign: 'center', padding: '4px 2px',
           }}>
             <span style={{
-              fontSize: 8, color: 'rgba(255,200,80,0.3)',
+              fontSize: 8, color: 'var(--gold)',
               letterSpacing: '0.04em', textTransform: 'uppercase',
               writingMode: 'vertical-rl',
             }}>{tp.label}</span>
@@ -384,17 +370,17 @@ export default function RoutineView({ user }) {
       return (
         <td key={tp.period} colSpan={colSpan} style={{
           padding: 5, 
-          borderLeft: '1px solid rgba(255,255,255,0.04)',
-          height: '1px' // <-- TRICK: Forces the td to pass its calculated height down
+          borderLeft: '1px solid var(--surface-border)',
+          height: '1px' 
         }}>
           {slot
             ? <SlotCard slot={slot} onClick={setModal} />
             : <div style={{
-                height: '100%', // <-- Stretches to fill the td perfectly
-                minHeight: 70,  // <-- Matches the standard SlotCard min-height
+                height: '100%', 
+                minHeight: 70,  
                 borderRadius: 8,
-                background: 'rgba(255,255,255,0.012)',
-                border: '1px dashed rgba(255,255,255,0.05)',
+                background: 'var(--surface)',
+                border: '1px dashed var(--surface-border)',
               }} />
           }
         </td>
@@ -407,19 +393,19 @@ export default function RoutineView({ user }) {
       padding: tp.isBreak ? '8px 4px' : '14px 6px',
       textAlign: 'center',
       fontSize: tp.isBreak ? 8 : 10,
-      color: tp.isBreak ? 'rgba(255,200,80,0.5)' : 'rgba(140,165,215,0.6)',
+      color: tp.isBreak ? 'var(--gold)' : 'var(--text-muted)',
       fontWeight: 600,
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
-      background: tp.isBreak ? 'rgba(255,200,80,0.03)' : 'rgba(255,255,255,0.02)',
+      borderBottom: '1px solid var(--surface-border)',
+      background: tp.isBreak ? 'var(--gold-bg)' : 'var(--surface)',
       minWidth: tp.isBreak ? 44 : 98,
-      borderLeft: '1px solid rgba(255,255,255,0.04)',
+      borderLeft: '1px solid var(--surface-border)',
     }}>
       {tp.isBreak
         ? <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tp.label}</span>
         : <>
-            <div className="mono" style={{ fontSize: 13, color: 'rgba(160,185,230,0.8)', marginBottom: 1 }}>P{tp.period}</div>
-            <div style={{ fontSize: 9, color: 'rgba(110,135,190,0.5)' }}>{tp.start}</div>
-            <div style={{ fontSize: 9, color: 'rgba(110,135,190,0.35)' }}>{tp.end}</div>
+            <div className="mono" style={{ fontSize: 13, color: 'var(--text)', marginBottom: 1 }}>P{tp.period}</div>
+            <div style={{ fontSize: 9, opacity: 0.6 }}>{tp.start}</div>
+            <div style={{ fontSize: 9, opacity: 0.4 }}>{tp.end}</div>
           </>
       }
     </th>
@@ -429,8 +415,8 @@ export default function RoutineView({ user }) {
   function batchStyle(k) {
     return {
       padding: '5px 12px', borderRadius: 6, border: 'none',
-      background: batchActive(k) ? 'rgba(240,190,60,0.2)' : 'transparent',
-      color: batchActive(k) ? '#f0c060' : 'rgba(150,170,210,0.5)',
+      background: batchActive(k) ? 'var(--gold-bg)' : 'transparent',
+      color: batchActive(k) ? 'var(--gold)' : 'var(--text-muted)',
       fontSize: 12, fontWeight: batchActive(k) ? 700 : 400,
       cursor: 'pointer', transition: 'all 0.15s'
     };
@@ -441,7 +427,7 @@ export default function RoutineView({ user }) {
       <div style={{ marginBottom: 24 }}>
         <div className="mono" style={{
           fontSize: 10, letterSpacing: '0.2em',
-          color: 'rgba(99,140,255,0.65)', textTransform: 'uppercase', marginBottom: 6,
+          color: 'var(--blue-muted)', textTransform: 'uppercase', marginBottom: 6,
         }}>
           Rajshahi University of Engineering &amp; Technology
         </div>
@@ -451,10 +437,10 @@ export default function RoutineView({ user }) {
         }}>
           ETE Department · Class Routine
         </h1>
-        <p style={{ color: 'rgba(140,165,215,0.5)', fontSize: 13, margin: '4px 0 0', display: 'flex', alignItems: 'center' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '4px 0 0', display: 'flex', alignItems: 'center' }}>
           Series {params.series} · {displaySem ? displaySem.charAt(0).toUpperCase() + displaySem.slice(1) : ''} Semester
           <span style={{ 
-            marginLeft: 12, color: 'rgba(99,140,255,0.8)', fontSize: 11,
+            marginLeft: 12, color: 'var(--blue-muted)', fontSize: 11,
             opacity: isFetching ? 1 : 0, transition: 'opacity 0.2s',
             display: 'inline-flex', alignItems: 'center', gap: 4
           }}>
@@ -466,14 +452,14 @@ export default function RoutineView({ user }) {
       {/* Controls */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20, alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Series</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Series</span>
           <div style={{ display: 'flex', gap: 4 }}>
             {activeSeries.map(s => (
               <button key={s} onClick={() => handleSeriesChange(s)} style={{
                 padding: '5px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
-                border: params.series === s ? '1px solid rgba(99,140,255,0.6)' : '1px solid rgba(255,255,255,0.08)',
-                background: params.series === s ? 'rgba(60,100,220,0.2)' : 'rgba(255,255,255,0.03)',
-                color: params.series === s ? '#a8c2ff' : 'rgba(150,170,210,0.5)',
+                border: params.series === s ? '1px solid var(--blue-bdr)' : '1px solid var(--surface-border)',
+                background: params.series === s ? 'var(--blue-bg)' : 'var(--surface)',
+                color: params.series === s ? 'var(--blue)' : 'var(--text-muted)',
                 fontWeight: params.series === s ? 700 : 400,
                 fontFamily: 'JetBrains Mono, monospace',
                 transition: 'all 0.15s'
@@ -484,13 +470,13 @@ export default function RoutineView({ user }) {
 
         {isStaff && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sem</span>
-            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 2, gap: 2 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sem</span>
+            <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: 8, padding: 2, gap: 2 }}>
               {['even','odd'].map(s => (
                 <button key={s} onClick={() => setParams(prev => ({ ...prev, sem: s }))} style={{
                   padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                  background: displaySem === s ? 'rgba(60,100,220,0.3)' : 'transparent',
-                  color: displaySem === s ? '#a8c2ff' : 'rgba(150,170,210,0.5)',
+                  background: displaySem === s ? 'var(--blue-bg)' : 'transparent',
+                  color: displaySem === s ? 'var(--blue)' : 'var(--text-muted)',
                   fontSize: 12, fontWeight: displaySem === s ? 700 : 400, textTransform: 'capitalize',
                   transition: 'all 0.15s'
                 }}>{s}</button>
@@ -507,17 +493,13 @@ export default function RoutineView({ user }) {
             marginLeft: 'auto',
             display: 'flex', alignItems: 'center', gap: 7,
             padding: '7px 16px', borderRadius: 9, cursor: printing || isFetching || initialLoad ? 'not-allowed' : 'pointer',
-            border: '1px solid rgba(99,140,255,0.35)',
-            background: printing || isFetching || initialLoad
-              ? 'rgba(99,140,255,0.06)'
-              : 'linear-gradient(135deg, rgba(99,140,255,0.25) 0%, rgba(99,140,255,0.15) 100%)',
-            color: printing || isFetching || initialLoad ? 'rgba(150,170,210,0.4)' : '#a8c2ff',
+            border: '1px solid var(--blue-bdr)',
+            background: printing || isFetching || initialLoad ? 'var(--surface)' : 'var(--blue-bg)',
+            color: printing || isFetching || initialLoad ? 'var(--text-muted)' : 'var(--blue)',
             fontSize: 12, fontWeight: 600,
-            boxShadow: printing || isFetching || initialLoad ? 'none' : '0 0 14px rgba(99,140,255,0.15)',
+            boxShadow: printing || isFetching || initialLoad ? 'none' : '0 0 14px var(--surface-border)',
             transition: 'all 0.15s',
           }}
-          onMouseEnter={e => { if (!printing && !isFetching && !initialLoad) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,140,255,0.38) 0%, rgba(99,140,255,0.25) 100%)'; }}
-          onMouseLeave={e => { if (!printing && !isFetching && !initialLoad) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99,140,255,0.25) 0%, rgba(99,140,255,0.15) 100%)'; }}
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.2"/>
@@ -527,8 +509,8 @@ export default function RoutineView({ user }) {
         </button>
 
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'rgba(140,165,215,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Batch</span>
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 2, gap: 2 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Batch</span>
+          <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: 8, padding: 2, gap: 2 }}>
             {[{k:'all',l:'All'},{k:'1st30',l:'1st 30'},{k:'2nd30',l:'2nd 30'}].map(b => (
               <button key={b.k} onClick={() => setParams(prev => ({ ...prev, batch: b.k }))} style={batchStyle(b.k)}>{b.l}</button>
             ))}
@@ -541,7 +523,7 @@ export default function RoutineView({ user }) {
         {Object.entries(COLORS).map(([type, c]) => (
           <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 10, height: 10, borderRadius: 2, background: c.badge, opacity: 0.85 }} />
-            <span style={{ fontSize: 11, color: 'rgba(150,170,210,0.65)', textTransform: 'capitalize' }}>{type}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{type}</span>
           </div>
         ))}
       </div>
@@ -550,8 +532,8 @@ export default function RoutineView({ user }) {
       {error && (
         <div style={{
           padding: '14px 18px', marginBottom: 16,
-          background: 'rgba(220,60,40,0.08)', border: '1px solid rgba(255,90,69,0.25)',
-          borderRadius: 10, color: '#ff8070', fontSize: 13,
+          background: 'var(--red-bg)', border: '1px solid var(--red-bdr)',
+          borderRadius: 10, color: 'var(--red)', fontSize: 13,
         }}>⚠ {error}</div>
       )}
 
@@ -559,8 +541,8 @@ export default function RoutineView({ user }) {
       {initialLoad ? <Skeleton /> : (
         <div style={{
           overflowX: 'auto', borderRadius: 14,
-          border: '1px solid rgba(255,255,255,0.06)',
-          background: 'rgba(255,255,255,0.012)',
+          border: '1px solid var(--surface-border)',
+          background: 'var(--surface)',
           backdropFilter: 'blur(20px)',
           opacity: isFetching ? 0.7 : 1,
           pointerEvents: isFetching ? 'none' : 'auto',
@@ -573,21 +555,21 @@ export default function RoutineView({ user }) {
                 <th style={{
                   padding: '14px 16px', textAlign: 'left',
                   fontSize: 10, letterSpacing: '0.12em',
-                  color: 'rgba(140,165,215,0.45)', textTransform: 'uppercase',
-                  fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.06)',
-                  background: 'rgba(255,255,255,0.02)', width: 72,
+                  color: 'var(--text-muted)', textTransform: 'uppercase',
+                  fontWeight: 600, borderBottom: '1px solid var(--surface-border)',
+                  background: 'var(--surface)', width: 72,
                 }}>Day</th>
                 {thCells}
               </tr>
             </thead>
             <tbody>
               {DAYS.map(day => (
-                <tr key={day} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <tr key={day} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                   <td style={{
                     padding: '10px 16px', fontSize: 12, fontWeight: 700,
-                    color: 'rgba(160,185,230,0.8)',
-                    background: 'rgba(255,255,255,0.015)',
-                    borderRight: '1px solid rgba(255,255,255,0.06)',
+                    color: 'var(--text)',
+                    background: 'var(--surface)',
+                    borderRight: '1px solid var(--surface-border)',
                     whiteSpace: 'nowrap',
                     fontFamily: 'JetBrains Mono, monospace',
                     letterSpacing: '0.04em',
@@ -605,12 +587,12 @@ export default function RoutineView({ user }) {
       {/* Footer */}
       <div style={{
         marginTop: 18, padding: '12px 16px',
-        background: 'rgba(255,200,80,0.05)', border: '1px solid rgba(255,200,80,0.14)',
-        borderRadius: 10, fontSize: 11, color: 'rgba(220,185,80,0.65)', lineHeight: 1.7,
+        background: 'var(--gold-bg)', border: '1px solid var(--gold-bdr)',
+        borderRadius: 10, fontSize: 11, color: 'var(--gold-text)', lineHeight: 1.7,
       }}>
-        <strong style={{ color: 'rgba(240,200,100,0.85)' }}>Note:</strong>{' '}
+        <strong style={{ color: 'var(--gold)' }}>Note:</strong>{' '}
         P&amp;LB = Prayer &amp; Lunch Break (1:20–2:30). Break (10:30–10:50).
-        Multi-period labs span merged columns. Use the <strong style={{ color: '#f0c060' }}>Batch</strong> toggle to separate 1st 30 / 2nd 30 lab groups.
+        Multi-period labs span merged columns. Use the <strong style={{ color: 'var(--gold)' }}>Batch</strong> toggle to separate 1st 30 / 2nd 30 lab groups.
         Click any slot to view details.
       </div>
 

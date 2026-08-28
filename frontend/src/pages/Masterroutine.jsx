@@ -132,19 +132,6 @@ function SeriesGrid({ cfg, slots, seriesColor, setModal }) {
             {cfg.currentSemester} semester · {slots.length} slot{slots.length !== 1 ? 's' : ''}
           </div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
-          {Object.entries(
-            slots.reduce((acc, s) => { acc[s.type] = (acc[s.type] || 0) + 1; return acc; }, {})
-          ).map(([type, count]) => (
-            <div key={type} style={{
-              fontSize: 10, fontWeight: 700,
-              color: COLORS[type]?.badge || 'var(--text-muted)',
-              background: COLORS[type]?.bg || 'var(--surface)',
-              border: `1px solid ${COLORS[type]?.border || 'var(--surface-border)'}`,
-              borderRadius: 5, padding: '2px 8px', textTransform: 'capitalize',
-            }}>{count} {type}</div>
-          ))}
-        </div>
       </div>
 
       {/* Grid */}
@@ -596,7 +583,6 @@ export default function MasterRoutine({ user }) {
   }
 
   const totalSlots = Object.values(data).reduce((sum, d) => sum + (d.slots?.length || 0), 0);
-  const totalLabs  = Object.values(data).reduce((sum, d) => sum + (d.slots?.filter(s => s.type === 'lab').length || 0), 0);
 
   return (
     <div style={{ position: 'relative', zIndex: 1, padding: '24px 20px' }} className="fade-up">
@@ -615,7 +601,7 @@ export default function MasterRoutine({ user }) {
           ETE Department · Full Routine
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '4px 0 0' }}>
-          {seriesConfigs.length} active series · {totalSlots} total slots · {totalLabs} labs
+          {seriesConfigs.length} active series · {totalSlots} total slots
           {loading && <span style={{ marginLeft: 12, color: 'var(--blue-muted)', fontSize: 11 }}>⟳ Loading…</span>}
         </p>
       </div>
@@ -639,7 +625,6 @@ export default function MasterRoutine({ user }) {
           {[
             ['Series', seriesConfigs.length, 'var(--blue)'],
             ['Slots',  totalSlots,            'var(--green)'],
-            ['Labs',   totalLabs,             'var(--gold)'],
           ].map(([label, val, color]) => (
             <div key={label} style={{
               padding: '8px 14px',
